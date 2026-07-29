@@ -1,0 +1,1176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Elemental Blast — Prototype v1.1</title>
+  <style>
+    :root {
+      --bg: #0F0E17;
+      --panel: #171625;
+      --cell: #222133;
+      --text: #ffffff;
+      --muted: #a7a9be;
+      --cell-size: min(11vw, 44px);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .app {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 10px 10px 24px;
+    }
+
+    .top {
+      display: grid;
+      grid-template-columns: repeat(4, auto);
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .top b {
+      display: block;
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.1;
+    }
+
+    .energy {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 10px 0;
+    }
+
+    .energy-slot {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: #2a2940;
+      border: 1px solid #3b3950;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .fury {
+      display: none;
+      width: max-content;
+      margin: 0 auto 10px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 2px solid #fff;
+      font-weight: 800;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .board-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 8px 0;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, var(--cell-size));
+      grid-template-rows: repeat(8, var(--cell-size));
+      gap: 3px;
+      padding: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 16px;
+    }
+
+    .cell {
+      width: var(--cell-size);
+      height: var(--cell-size);
+      border-radius: 8px;
+      background: var(--cell);
+      transition: transform 0.08s ease, filter 0.08s ease;
+    }
+
+    .cell.filled {
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .cell.rainbow {
+      background: linear-gradient(135deg, #FF6B47, #4CC9F0, #52B788, #B58DFF) !important;
+    }
+
+    .hint {
+      min-height: 20px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin: 6px 0;
+    }
+
+    .hand {
+      display: grid;
+      grid-template-columns: repeat(6, 58px);
+      gap: 6px;
+      justify-content: center;
+      margin: 10px 0;
+    }
+
+    .slot {
+      width: 58px;
+      height: 58px;
+      border-radius: 12px;
+      background: var(--panel);
+      border: 2px solid #33324b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .slot.selected {
+      border-color: #fff;
+      transform: translateY(-2px);
+    }
+
+    .slot.bonus {
+      border-style: dashed;
+      opacity: 0.95;
+    }
+
+    .piece {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mini-grid {
+      display: grid;
+      gap: 1px;
+    }
+
+    .mini-cell {
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+      background: transparent;
+    }
+
+    .mini-cell.filled {
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .mini-cell.rainbow {
+      background: linear-gradient(135deg, #FF6B47, #4CC9F0, #52B788, #B58DFF);
+    }
+
+    .special-icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #081018;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #3b3950;
+      color: #fff;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 60;
+      padding: 20px;
+    }
+
+    .overlay .panel {
+      width: 100%;
+      max-width: 320px;
+      background: var(--panel);
+      border: 1px solid #3b3950;
+      border-radius: 18px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .overlay h2 {
+      margin: 0 0 8px;
+    }
+
+    .overlay p {
+      margin: 6px 0 16px;
+      color: var(--muted);
+    }
+
+    .overlay .actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 86px;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.82);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 13px;
+      display: none;
+      z-index: 70;
+      max-width: 90vw;
+      text-align: center;
+    }
+
+    .cleansing {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 80;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 24px;
+      text-align: center;
+    }
+
+    .cleansing .card {
+      background: rgba(15, 14, 23, 0.92);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 18px;
+      padding: 20px 24px;
+      font-size: 28px;
+      font-weight: 900;
+      box-shadow: 0 0 40px rgba(255, 255, 255, 0.18);
+    }
+
+    .cleansing .sub {
+      margin-top: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div>Счёт<b id="score">0</b></div>
+      <div>Рекорд<b id="best">0</b></div>
+      <div>Звёзды<b id="stars">0</b></div>
+      <div>Множитель<b id="mult">1.00x</b></div>
+    </div>
+
+    <div class="energy" id="energy"></div>
+    <div class="fury" id="fury"></div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="hint" id="hint">Выбери фигуру внизу, затем тапни по полю. Фигура ставится верхним левым углом в выбранную клетку.</div>
+
+    <div class="hand" id="hand"></div>
+
+    <div class="controls">
+      <button id="orientBtn" class="secondary" style="display:none;">Ориентация линии: ряд</button>
+      <button id="deselectBtn" class="secondary">Снять выбор</button>
+      <button id="restartBtn">Новая игра</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h2>Game Over</h2>
+      <p>Счёт: <span id="finalScore">0</span></p>
+      <div class="actions">
+        <button id="continueBtn">Продолжить — очистить 5 клеток (rewarded stub)</button>
+        <button id="overlayRestartBtn" class="secondary">Заново</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="cleansing" id="cleansing">
+    <div>
+      <div class="card" id="cleansingTitle">Очищение!</div>
+      <div class="sub" id="cleansingSub"></div>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const SIZE = 8;
+
+    const ELEMENTS = [
+      { name: "Огонь", emoji: "🔥", color: "#FF6B47" },
+      { name: "Вода", emoji: "💧", color: "#4CC9F0" },
+      { name: "Земля", emoji: "🌿", color: "#52B788" },
+      { name: "Воздух", emoji: "💨", color: "#B58DFF" }
+    ];
+
+    const SHAPES = [
+      [[0,0]],
+      [[0,0],[0,1]],
+      [[0,0],[1,0]],
+      [[0,0],[0,1],[0,2]],
+      [[0,0],[1,0],[2,0]],
+      [[0,0],[0,1],[0,2],[0,3]],
+      [[0,0],[1,0],[2,0],[3,0]],
+      [[0,0],[0,1],[1,0],[1,1]],
+      [[0,0],[0,1],[0,2],[1,0]],
+      [[0,0],[0,1],[0,2],[1,2]],
+      [[0,0],[1,0],[1,1],[1,2]],
+      [[0,2],[1,0],[1,1],[1,2]],
+      [[0,0],[0,1],[1,1],[1,2]],
+      [[0,1],[1,0],[1,1],[1,2]],
+      [[0,0],[0,1],[0,2],[1,1]],
+      [[0,0],[1,0],[2,0],[2,1]],
+      [[0,1],[1,1],[2,0],[2,1]],
+      [[0,0],[0,1],[0,2],[0,3],[0,4]],
+      [[0,0],[1,0],[2,0],[3,0],[4,0]],
+      [[0,0],[0,1],[0,2],[1,0],[1,1]]
+    ];
+
+    const CLEANSING_TABLE = [
+      { overflow: 0, name: "Очищение", score: 6000, stars: 1, rainbow: 3, special: null, specialCount: 0, fury: 30, mult: 1.5 },
+      { overflow: 1, name: "Переполнение", score: 12000, stars: 2, rainbow: 3, special: "bomb", specialCount: 1, fury: 45, mult: 2.0 },
+      { overflow: 2, name: "Извержение", score: 20000, stars: 3, rainbow: 4, special: "cross", specialCount: 1, fury: 60, mult: 2.5 },
+      { overflow: 3, name: "Великое", score: 30000, stars: 3, rainbow: 4, special: "line", specialCount: 1, fury: 75, mult: 3.0 },
+      { overflow: 4, name: "Легендарное", score: 45000, stars: 3, rainbow: 5, special: "apocalypse", specialCount: 1, fury: 90, mult: 4.0 },
+      { overflow: 5, name: "Легендарное+", score: 60000, stars: 3, rainbow: 5, special: "apocalypse", specialCount: 2, fury: 120, mult: 5.0 }
+    ];
+
+    const SPECIAL_ICONS = {
+      bomb: "💣",
+      cross: "✚",
+      line: "⚡",
+      apocalypse: "☄"
+    };
+
+    const SPECIAL_NAMES = {
+      bomb: "Бомба 2×2",
+      cross: "Крест",
+      line: "Линия",
+      apocalypse: "Апокалипсис"
+    };
+
+    let grid = [];
+    let hand = [];
+    let score = 0;
+    let best = 0;
+    let stars = 0;
+    let energySlots = [];
+    let fury = null;
+    let selected = null;
+    let gameOver = false;
+    let continueUsed = false;
+    let lastEnergyElement = 0;
+    let lineOrientation = "h";
+
+    const el = {
+      score: document.getElementById("score"),
+      best: document.getElementById("best"),
+      stars: document.getElementById("stars"),
+      mult: document.getElementById("mult"),
+      energy: document.getElementById("energy"),
+      fury: document.getElementById("fury"),
+      board: document.getElementById("board"),
+      hint: document.getElementById("hint"),
+      hand: document.getElementById("hand"),
+      orientBtn: document.getElementById("orientBtn"),
+      deselectBtn: document.getElementById("deselectBtn"),
+      restartBtn: document.getElementById("restartBtn"),
+      overlay: document.getElementById("overlay"),
+      finalScore: document.getElementById("finalScore"),
+      continueBtn: document.getElementById("continueBtn"),
+      overlayRestartBtn: document.getElementById("overlayRestartBtn"),
+      toast: document.getElementById("toast"),
+      cleansing: document.getElementById("cleansing"),
+      cleansingTitle: document.getElementById("cleansingTitle"),
+      cleansingSub: document.getElementById("cleansingSub")
+    };
+
+    function init() {
+      best = Number(localStorage.getItem("elemental_blast_best") || 0);
+      buildBoard();
+      bindButtons();
+      newGame();
+      setInterval(updateFuryTimer, 200);
+    }
+
+    function buildBoard() {
+      el.board.innerHTML = "";
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.dataset.r = r;
+          cell.dataset.c = c;
+          cell.addEventListener("click", () => onBoardClick(r, c));
+          el.board.appendChild(cell);
+        }
+      }
+    }
+
+    function bindButtons() {
+      el.restartBtn.addEventListener("click", newGame);
+      el.overlayRestartBtn.addEventListener("click", newGame);
+      el.continueBtn.addEventListener("click", continueGame);
+      el.deselectBtn.addEventListener("click", () => {
+        selected = null;
+        renderAll();
+      });
+      el.orientBtn.addEventListener("click", () => {
+        lineOrientation = lineOrientation === "h" ? "v" : "h";
+        renderAll();
+      });
+    }
+
+    function newGame() {
+      grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null));
+      hand = [null, null, null, null, null, null];
+      score = 0;
+      stars = 0;
+      energySlots = [];
+      fury = null;
+      selected = null;
+      gameOver = false;
+      continueUsed = false;
+      lastEnergyElement = 0;
+      lineOrientation = "h";
+
+      refillNormals();
+      hideOverlay();
+      renderAll();
+    }
+
+    function randInt(n) {
+      return Math.floor(Math.random() * n);
+    }
+
+    function randNormalPiece() {
+      return {
+        kind: "normal",
+        shape: SHAPES[randInt(SHAPES.length)],
+        element: randInt(4)
+      };
+    }
+
+    function makeRainbowPiece() {
+      return {
+        kind: "rainbow",
+        shape: [[0, 0]],
+        element: -1
+      };
+    }
+
+    function makeSpecialPiece(type) {
+      return {
+        kind: "special",
+        special: type
+      };
+    }
+
+    function refillNormals() {
+      if (hand[0] === null && hand[1] === null && hand[2] === null) {
+        hand[0] = randNormalPiece();
+        hand[1] = randNormalPiece();
+        hand[2] = randNormalPiece();
+      }
+    }
+
+    function currentMult() {
+      if (fury && Date.now() >= fury.until) {
+        fury = null;
+      }
+      const starBonus = 1 + Math.min(stars, 60) / 60 * 1.5;
+      const furyMult = fury ? fury.mult : 1;
+      return starBonus * furyMult;
+    }
+
+    function addScore(base) {
+      const gain = Math.round(base * currentMult());
+      score += gain;
+      if (score > best) best = score;
+      return gain;
+    }
+
+    function getCells(shape, r, c) {
+      return shape.map(([dr, dc]) => [r + dr, c + dc]);
+    }
+
+    function canPlace(shape, r, c) {
+      return getCells(shape, r, c).every(([rr, cc]) => {
+        return rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && !grid[rr][cc];
+      });
+    }
+
+    function canPlaceAnywhere(shape) {
+      for (let r = 0; r < SIZE; r++) {
+        for (let c = 0; c < SIZE; c++) {
+          if (canPlace(shape, r, c)) return true;
+        }
+      }
+      return false;
+    }
+
+    function hasEmptyCell() {
+      return grid.some(row => row.some(cell => !cell));
+    }
+
+    function hasFilledCell() {
+      return grid.some(row => row.some(cell => !!cell));
+    }
+
+    function selectPiece(index) {
+      if (gameOver) return;
+      if (!hand[index]) {
+        selected = null;
+      } else {
+        selected = selected === index ? null : index;
+      }
+      renderAll();
+    }
+
+    function onBoardClick(r, c) {
+      if (gameOver) return;
+
+      if (selected === null) {
+        toast("Сначала выбери фигуру внизу.");
+        return;
+      }
+
+      const item = hand[selected];
+      if (!item) {
+        selected = null;
+        renderAll();
+        return;
+      }
+
+      if (item.kind === "special") {
+        useSpecial(selected, r, c);
+      } else {
+        placeNormal(selected, r, c);
+      }
+    }
+
+    function placeNormal(index, r, c) {
+      const piece = hand[index];
+      if (!piece) return;
+
+      if (!canPlace(piece.shape, r, c)) {
+        toast("Фигура сюда не помещается.");
+        return;
+      }
+
+      const cells = getCells(piece.shape, r, c);
+
+      cells.forEach(([rr, cc]) => {
+        grid[rr][cc] = {
+          element: piece.kind === "rainbow" ? lastEnergyElement : piece.element,
+          multi: piece.kind === "rainbow"
+        };
+      });
+
+      hand[index] = null;
+      selected = null;
+
+      const result = resolveLines();
+
+      if (result.gainedElements.length > 0) {
+        addEnergy(result.gainedElements, result.elementalLines);
+      }
+
+      maybeRefill();
+      checkGameOver();
+      renderAll();
+    }
+
+    function lineInfo(line) {
+      const nonMulti = line
+        .filter(cell => cell && !cell.multi)
+        .map(cell => cell.element);
+
+      const unique = [...new Set(nonMulti)];
+
+      if (unique.length === 0) {
+        return { elemental: true, element: lastEnergyElement };
+      }
+
+      if (unique.length === 1) {
+        return { elemental: true, element: unique[0] };
+      }
+
+      return { elemental: false, element: null };
+    }
+
+    function resolveLines() {
+      const fullRows = [];
+      const fullCols = [];
+
+      for (let r = 0; r < SIZE; r++) {
+        if (grid[r].every(cell => !!cell)) fullRows.push(r);
+      }
+
+      for (let c = 0; c < SIZE; c++) {
+        let full = true;
+        for (let r = 0; r < SIZE; r++) {
+          if (!grid[r][c]) {
+            full = false;
+            break;
+          }
+        }
+        if (full) fullCols.push(c);
+      }
+
+      if (fullRows.length === 0 && fullCols.length === 0) {
+        return { gainedElements: [], elementalLines: 0 };
+      }
+
+      const clearSet = new Set();
+      const gainedElements = [];
+
+      fullRows.forEach(r => {
+        const line = grid[r];
+        const info = lineInfo(line);
+        addScore(info.elemental ? 2500 : 1000);
+        if (info.elemental) gainedElements.push(info.element);
+
+        for (let c = 0; c < SIZE; c++) {
+          clearSet.add(r * SIZE + c);
+        }
+      });
+
+      fullCols.forEach(c => {
+        const line = grid.map(row => row[c]);
+        const info = lineInfo(line);
+        addScore(info.elemental ? 2500 : 1000);
+        if (info.elemental) gainedElements.push(info.element);
+
+        for (let r = 0; r < SIZE; r++) {
+          clearSet.add(r * SIZE + c);
+        }
+      });
+
+      clearSet.forEach(key => {
+        const r = Math.floor(key / SIZE);
+        const c = key % SIZE;
+        grid[r][c] = null;
+      });
+
+      return {
+        gainedElements,
+        elementalLines: gainedElements.length
+      };
+    }
+
+    function addEnergy(gainedElements, elementalLines) {
+      const before = energySlots.length;
+      const free = 3 - before;
+      const total = before + gainedElements.length;
+
+      if (total >= 3) {
+        const combined = energySlots.concat(gainedElements);
+        const consumed = combined.slice(0, 3);
+        const pure = consumed.every(e => e === consumed[0]);
+
+        let overflow = gainedElements.length - free;
+        if (overflow < 0) overflow = 0;
+        if (overflow > 5) overflow = 5;
+
+        triggerCleansing(overflow, pure, elementalLines >= 2, consumed[0]);
+        energySlots = [];
+      } else {
+        energySlots = energySlots.concat(gainedElements);
+        lastEnergyElement = energySlots[energySlots.length - 1];
+      }
+    }
+
+    function upgradeSpecial(type) {
+      const order = ["bomb", "cross", "line", "apocalypse"];
+      const index = order.indexOf(type);
+      if (index === -1) return "bomb";
+      return order[Math.min(index + 1, order.length - 1)];
+    }
+
+    function triggerCleansing(overflow, pure, combo, element) {
+      const table = CLEANSING_TABLE[overflow];
+
+      let specialType = table.special;
+      let specialCount = table.specialCount;
+      let furyDuration = table.fury;
+      const furyMult = table.mult;
+      const rainbowCount = table.rainbow;
+
+      if (combo) {
+        furyDuration = Math.round(furyDuration * 1.5);
+        specialCount *= 2;
+      }
+
+      if (pure) {
+        furyDuration *= 2;
+
+        if (specialType) {
+          specialType = upgradeSpecial(specialType);
+        } else {
+          specialType = "bomb";
+          specialCount = Math.max(specialCount, 1);
+        }
+      }
+
+      const scoreGain = Math.round(table.score * currentMult() * (pure ? 2 : 1));
+      score += scoreGain;
+      if (score > best) best = score;
+
+      stars += table.stars;
+
+      addRainbowPieces(rainbowCount);
+
+      if (specialType && specialCount > 0) {
+        addSpecialPieces(specialType, specialCount);
+      }
+
+      fury = {
+        until: Date.now() + furyDuration * 1000,
+        mult: furyMult,
+        element
+      };
+
+      lastEnergyElement = element;
+
+      showCleansing({
+        name: table.name,
+        scoreGain,
+        pure,
+        combo,
+        furyDuration,
+        furyMult,
+        element
+      });
+    }
+
+    function addRainbowPieces(count) {
+      for (let i = 0; i < count; i++) {
+        const idx = hand.findIndex((p, j) => j >= 3 && p === null);
+        if (idx !== -1) {
+          hand[idx] = makeRainbowPiece();
+        } else {
+          score += Math.round(500 * currentMult());
+        }
+      }
+    }
+
+    function addSpecialPieces(type, count) {
+      for (let i = 0; i < count; i++) {
+        const idx = hand.findIndex((p, j) => j >= 3 && p === null);
+        if (idx !== -1) {
+          hand[idx] = makeSpecialPiece(type);
+        } else {
+          score += Math.round(1000 * currentMult());
+        }
+      }
+    }
+
+    function useSpecial(index, r, c) {
+      const piece = hand[index];
+      if (!piece) return;
+
+      let cleared = 0;
+
+      const clearCell = (rr, cc) => {
+        if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && grid[rr][cc]) {
+          grid[rr][cc] = null;
+          cleared++;
+        }
+      };
+
+      if (piece.special === "bomb") {
+        for (let dr = 0; dr < 2; dr++) {
+          for (let dc = 0; dc < 2; dc++) {
+            clearCell(r + dr, c + dc);
+          }
+        }
+      }
+
+      if (piece.special === "cross") {
+        for (let cc = 0; cc < SIZE; cc++) clearCell(r, cc);
+        for (let rr = 0; rr < SIZE; rr++) clearCell(rr, c);
+      }
+
+      if (piece.special === "line") {
+        if (lineOrientation === "h") {
+          for (let cc = 0; cc < SIZE; cc++) clearCell(r, cc);
+        } else {
+          for (let rr = 0; rr < SIZE; rr++) clearCell(rr, c);
+        }
+      }
+
+      if (piece.special === "apocalypse") {
+        const rows = [r, r + 1];
+        const cols = [c, c + 1];
+
+        rows.forEach(rr => {
+          for (let cc = 0; cc < SIZE; cc++) clearCell(rr, cc);
+        });
+
+        cols.forEach(cc => {
+          for (let rr = 0; rr < SIZE; rr++) clearCell(rr, cc);
+        });
+      }
+
+      if (cleared === 0) {
+        toast("Спецфигура не нашла заполненных клеток.");
+        return;
+      }
+
+      const gain = Math.round(cleared * 100 * currentMult());
+      score += gain;
+      if (score > best) best = score;
+
+      hand[index] = null;
+      selected = null;
+
+      toast(`${SPECIAL_NAMES[piece.special]}: очищено клеток: ${cleared}, +${gain}`);
+
+      maybeRefill();
+      checkGameOver();
+      renderAll();
+    }
+
+    function maybeRefill() {
+      refillNormals();
+    }
+
+    function checkGameOver() {
+      if (gameOver) return;
+
+      const hasNormalMove = hand.some((p, i) => {
+        return i < 3 && p && p.kind !== "special" && canPlaceAnywhere(p.shape);
+      });
+
+      const hasBonusMove = hand.some((p, i) => {
+        if (i < 3 || !p) return false;
+
+        if (p.kind === "rainbow") {
+          return hasEmptyCell();
+        }
+
+        if (p.kind === "special") {
+          return hasFilledCell();
+        }
+
+        return false;
+      });
+
+      if (!hasNormalMove && !hasBonusMove) {
+        gameOver = true;
+        showOverlay();
+      }
+    }
+
+    function continueGame() {
+      if (continueUsed) return;
+
+      continueUsed = true;
+
+      for (let n = 0; n < 5; n++) {
+        const filled = [];
+        grid.forEach((row, r) => {
+          row.forEach((cell, c) => {
+            if (cell) filled.push([r, c]);
+          });
+        });
+
+        if (filled.length === 0) break;
+
+        const [r, c] = filled[randInt(filled.length)];
+        grid[r][c] = null;
+      }
+
+      gameOver = false;
+      hideOverlay();
+      toast("Rewarded stub: очищено 5 клеток.");
+      renderAll();
+    }
+
+    function showOverlay() {
+      el.finalScore.textContent = score;
+      el.continueBtn.style.display = continueUsed ? "none" : "block";
+      el.overlay.style.display = "flex";
+    }
+
+    function hideOverlay() {
+      el.overlay.style.display = "none";
+    }
+
+    let toastTimer = null;
+    function toast(message) {
+      el.toast.textContent = message;
+      el.toast.style.display = "block";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        el.toast.style.display = "none";
+      }, 1400);
+    }
+
+    let cleansingTimer = null;
+    function showCleansing(data) {
+      const element = ELEMENTS[data.element];
+
+      el.cleansingTitle.textContent = `${element.emoji} ${data.name}!`;
+      el.cleansingSub.innerHTML = `
+        +${data.scoreGain} очков<br>
+        Fury: ${data.furyDuration}s ×${data.furyMult}<br>
+        ${data.pure ? "Чистое Очищение ×2 " : ""}${data.combo ? "Комбо стихийных линий" : ""}
+      `.trim();
+
+      el.cleansing.style.display = "flex";
+
+      clearTimeout(cleansingTimer);
+      cleansingTimer = setTimeout(() => {
+        el.cleansing.style.display = "none";
+      }, 1600);
+    }
+
+    function updateFuryTimer() {
+      if (fury && Date.now() >= fury.until) {
+        fury = null;
+        renderAll();
+      } else if (fury) {
+        renderFury();
+        renderStats();
+      }
+    }
+
+    function renderAll() {
+      renderStats();
+      renderEnergy();
+      renderFury();
+      renderBoard();
+      renderHand();
+      renderControls();
+      renderHint();
+    }
+
+    function renderStats() {
+      el.score.textContent = score;
+      el.best.textContent = best;
+      el.stars.textContent = stars;
+      el.mult.textContent = currentMult().toFixed(2) + "x";
+      localStorage.setItem("elemental_blast_best", String(best));
+    }
+
+    function renderEnergy() {
+      el.energy.innerHTML = "";
+
+      for (let i = 0; i < 3; i++) {
+        const slot = document.createElement("div");
+        slot.className = "energy-slot";
+
+        if (i < energySlots.length) {
+          const element = ELEMENTS[energySlots[i]];
+          slot.textContent = element.emoji;
+          slot.style.background = element.color + "33";
+          slot.style.borderColor = element.color;
+        }
+
+        el.energy.appendChild(slot);
+      }
+    }
+
+    function renderFury() {
+      if (!fury) {
+        el.fury.style.display = "none";
+        return;
+      }
+
+      const seconds = Math.max(0, Math.ceil((fury.until - Date.now()) / 1000));
+      const element = ELEMENTS[fury.element];
+
+      el.fury.style.display = "block";
+      el.fury.style.borderColor = element.color;
+      el.fury.textContent = `Fury ${element.emoji} ${seconds}s ×${fury.mult}`;
+    }
+
+    function renderBoard() {
+      const cells = document.querySelectorAll(".cell");
+
+      cells.forEach(cell => {
+        const r = Number(cell.dataset.r);
+        const c = Number(cell.dataset.c);
+        const value = grid[r][c];
+
+        cell.className = "cell";
+        cell.style.background = "";
+
+        if (value) {
+          cell.classList.add("filled");
+
+          if (value.multi) {
+            cell.classList.add("rainbow");
+          } else {
+            cell.style.background = ELEMENTS[value.element].color;
+          }
+        }
+      });
+    }
+
+    function renderHand() {
+      el.hand.innerHTML = "";
+
+      hand.forEach((item, index) => {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+
+        if (index >= 3) {
+          slot.classList.add("bonus");
+        }
+
+        if (selected === index) {
+          slot.classList.add("selected");
+        }
+
+        if (item) {
+          slot.appendChild(createPieceView(item));
+        }
+
+        slot.addEventListener("click", (e) => {
+          e.stopPropagation();
+          selectPiece(index);
+        });
+
+        el.hand.appendChild(slot);
+      });
+    }
+
+    function createPieceView(item) {
+      const root = document.createElement("div");
+      root.className = "piece";
+
+      if (item.kind === "special") {
+        const icon = document.createElement("div");
+        icon.className = "special-icon";
+        icon.textContent = SPECIAL_ICONS[item.special];
+        root.appendChild(icon);
+        return root;
+      }
+
+      const shape = item.shape;
+      const maxR = Math.max(...shape.map(([r]) => r));
+      const maxC = Math.max(...shape.map(([, c]) => c));
+
+      const miniGrid = document.createElement("div");
+      miniGrid.className = "mini-grid";
+      miniGrid.style.gridTemplateColumns = `repeat(${maxC + 1}, 11px)`;
+      miniGrid.style.gridTemplateRows = `repeat(${maxR + 1}, 11px)`;
+
+      const filled = new Set(shape.map(([r, c]) => `${r},${c}`));
+
+      for (let r = 0; r <= maxR; r++) {
+        for (let c = 0; c <= maxC; c++) {
+          const cell = document.createElement("div");
+          cell.className = "mini-cell";
+
+          if (filled.has(`${r},${c}`)) {
+            cell.classList.add("filled");
+
+            if (item.kind === "rainbow") {
+              cell.classList.add("rainbow");
+            } else {
+              cell.style.background = ELEMENTS[item.element].color;
+            }
+          }
+
+          miniGrid.appendChild(cell);
+        }
+      }
+
+      root.appendChild(miniGrid);
+      return root;
+    }
+
+    function renderControls() {
+      const item = selected !== null ? hand[selected] : null;
+
+      if (item && item.kind === "special" && item.special === "line") {
+        el.orientBtn.style.display = "inline-block";
+        el.orientBtn.textContent = lineOrientation === "h"
+          ? "Ориентация линии: ряд"
+          : "Ориентация линии: столбец";
+      } else {
+        el.orientBtn.style.display = "none";
+      }
+    }
+
+    function renderHint() {
+      const item = selected !== null ? hand[selected] : null;
+
+      if (!item) {
+        el.hint.textContent = "Выбери фигуру внизу, затем тапни по полю. Фигура ставится верхним левым углом в выбранную клетку.";
+        return;
+      }
+
+      if (item.kind === "normal") {
+        el.hint.textContent = "Обычная фигура: тапни по полю. Клетка тапа = верхний левый угол фигуры.";
+        return;
+      }
+
+      if (item.kind === "rainbow") {
+        el.hint.textContent = "Радужная 1×1: ставится в любую пустую клетку и считается любой стихией.";
+        return;
+      }
+
+      if (item.kind === "special") {
+        if (item.special === "line") {
+          el.hint.textContent = "Линия: выбери ориентацию кнопкой выше, затем тапни по ряду или столбцу.";
+        } else {
+          el.hint.textContent = `${SPECIAL_NAMES[item.special]}: тапни по клетке, чтобы очистить область.`;
+        }
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
