@@ -20,7 +20,7 @@
  */
 import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
-import type { LineOrientation, Piece } from '../../core/types';
+import type { LineOrientation, Piece, PlacementResult } from '../../core/types';
 import { getSpecialRegion, getEmptyCellsInRegion } from '../../core/specials';
 import { isInside } from '../../core/grid';
 import {
@@ -41,8 +41,8 @@ export interface SpecialInputDeps {
   engine: GameEngine;
   boardView: BoardView;
   handView: HandView;
-  /** Колбэк после успешного хода. */
-  onUsed: () => void;
+  /** Колбэк после успешного хода. Передаёт результат из engine для FX/UI. */
+  onUsed: (result: PlacementResult) => void;
 }
 
 export class SpecialInputController {
@@ -186,7 +186,7 @@ export class SpecialInputController {
 
     const result = this.deps.engine.useSpecial(piece.id, this.target, this.orientation);
     this.cancel();
-    if (result.ok) this.deps.onUsed();
+    if (result.ok) this.deps.onUsed(result);
   }
 
   private cycleOrientation(): void {

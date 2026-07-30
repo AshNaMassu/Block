@@ -27,6 +27,11 @@ export function resetHandPieceIdCounter(): void {
   pieceIdCounter = 0;
 }
 
+/** Создать пустую руку (6 null слотов). */
+export function createHand(): Hand {
+  return new Array<Piece | null>(HAND_SIZE).fill(null);
+}
+
 /** Создать радужную 1×1 фигуру. */
 export function makeRainbowPiece(): Piece {
   return { id: nextPieceId('r'), kind: 'rainbow', shape: [{ x: 0, y: 0 }] };
