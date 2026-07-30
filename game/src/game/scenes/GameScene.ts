@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
-import type { GameState } from '../../core/types';
+import type { GameState, PlacementResult } from '../../core/types';
 import { COLOR_BG, COLOR_GOLD, COLOR_TEXT, COLOR_TEXT_DIM } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, BACK_BUTTON_X, BACK_BUTTON_Y } from '../layout';
 import { BoardView } from '../objects/BoardView';
@@ -75,14 +75,14 @@ export class GameScene extends Phaser.Scene {
       engine: this.engine,
       boardView: this.boardView,
       handView: this.handView,
-      onPlaced: () => this.afterMove(),
+      onPlaced: (result) => this.afterMove(result),
     });
     this.specialInput = new SpecialInputController({
       scene: this,
       engine: this.engine,
       boardView: this.boardView,
       handView: this.handView,
-      onUsed: () => this.afterMove(),
+      onUsed: (result) => this.afterMove(result),
     });
 
     // Единый обработчик pointerdown: спец-режим имеет приоритет.
@@ -163,11 +163,80 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** После успешного хода: перерисов + проверка game over. */
-  private afterMove(): void {
+  private afterMove(result: PlacementResult): void {
     this.refresh();
-    if (!this.engine.hasAnyMove()) {
+
+    if (!result.gameOver) {
+      this.showMoveToast(result);
+    }
+
+    if (result.gameOver || !this.engine.hasAnyMove()) {
       this.showGameOver();
     }
+  }
+
+  /**
+   * Временный placeholder для T-040.
+   * Показывает итог хода из PlacementResult.
+   * Позже заменить на нормальный Toast/FX из T-041/T-042/T-043.
+   */
+  private showMoveToast(result: PlacementResult): void {
+    const lines: string[] = [];
+
+    if (result.scoreGained > 0) {
+      lines.push(`+${this.fmt(result.scoreGained)}`);
+    }
+
+    if (result.clearedLines.length > 0) {
+      lines.push(`Линии: ${result.clearedLines.length}`);
+    }
+
+    if (result.elementalLines > 0) {
+      lines.push(`Стихийные линии: ${result.elementalLines}`);
+    }
+
+    if (result.combo) {
+      lines.push(`Комбо: ${result.combo.lines} линий`);
+    }
+
+    if (result.specialAdded) {
+      lines.push(`Спецфигура: ${result.specialAdded.type} ×${result.specialAdded.count}`);
+    }
+
+    if (result.cleansing) {
+      lines.push(result.pure ? 'ЧИСТОЕ ОЧИЩЕНИЕ!' : 'ОЧИЩЕНИЕ!');
+      lines.push(`Радужные: +${result.rainbowAdded}`);
+    }
+
+    if (result.furyStarted) {
+      lines.push(`FURY ×${result.furyStarted.mult.toFixed(1)}`);
+    }
+
+    if (lines.length === 0) {
+      return;
+    }
+
+    const toast = this.add
+      .text(DESIGN_WIDTH / 2, 520, lines.join('\n'), {
+        fontFamily: 'system-ui, Arial, sans-serif',
+        fontSize: '44px',
+        color: this.hex(COLOR_GOLD),
+        align: 'center',
+        stroke: '#000000',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
+
+    this.tweens.add({
+      targets: toast,
+      y: 440,
+      alpha: 0,
+      duration: 1400,
+      delay: 900,
+      ease: 'Cubic.Out',
+      onComplete: () => toast.destroy(),
+    });
   }
 
   /** Полный перерисов из состояния engine. */

@@ -20,7 +20,7 @@
  */
 import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
-import type { Piece } from '../../core/types';
+import type { Piece, PlacementResult } from '../../core/types';
 import { getShapeCells } from '../../core/shapes';
 import { BOARD_BOTTOM, BOARD_TOP, BOARD_X, CELL_SIZE } from '../layout';
 import { HAND_PIECE_CELL } from '../layout';
@@ -39,8 +39,8 @@ export interface DragControllerDeps {
   engine: GameEngine;
   boardView: BoardView;
   handView: HandView;
-  /** Колбэк после успешного хода (для перерисова). */
-  onPlaced: () => void;
+  /** Колбэк после успешного хода. Передаёт результат из engine для FX/UI. */
+  onPlaced: (result: PlacementResult) => void;
 }
 
 export class DragController {
@@ -134,7 +134,7 @@ export class DragController {
       const result = this.deps.engine.placePiece(piece.id, target);
       placed = result.ok;
       if (placed) {
-        this.deps.onPlaced();
+        this.deps.onPlaced(result);
       }
     }
 

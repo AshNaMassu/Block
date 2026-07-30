@@ -26,8 +26,9 @@ export class MenuScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLOR_BG);
 
     const meta = this.loadMeta();
-    // Множитель считаем по звёздам (Fury вне игры = null).
-    const mult = currentMultiplier(meta.stars, null, Date.now());
+    // Множитель считаем от нуля (партия начинается с базового ×2.0).
+    // meta.stars — lifetime-статистика, не влияет на игровой множитель.
+    const mult = currentMultiplier(0, null, Date.now());
 
     // Тайтл.
     this.add
@@ -55,7 +56,7 @@ export class MenuScene extends Phaser.Scene {
       .text(
         DESIGN_WIDTH / 2,
         780,
-        `РЕКОРД ${this.fmt(meta.best)}    ★ ${meta.stars}    ×${mult.toFixed(1)}`,
+        `РЕКОРД ${this.fmt(meta.best)}   ★ ${meta.stars} всего   ×${mult.toFixed(1)} старт`,
         {
           fontFamily: 'system-ui, Arial, sans-serif',
           fontSize: '44px',
