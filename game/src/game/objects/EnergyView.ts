@@ -5,23 +5,24 @@
  * Очищение (Ось В). View только отображает energy.slots (ElementId[] длиной 0..3);
  * логику добавления/очищения считает core.
  *
- * `update(slots)` перерисовывает слоты. Пустой — тёмный фон, заполненный —
- * текстура стихии. КапACITY = 3 (config/balance ENERGY_CAPACITY).
+ * Анимации (T-042): новый слот появляется с pop-эффектом, при очищении
+ * слоты «стекают» (уменьшение + fade).
  */
 import Phaser from 'phaser';
 import type { EnergyState } from '../../core/types';
 import { ENERGY_CAPACITY } from '../../config/balance';
 import { COLOR_CELL_EMPTY } from '../../config/elements';
-import { CELL_RADIUS } from '../layout';
-import { ENERGY_GAP, ENERGY_SLOT_SIZE, ENERGY_Y, energySlotX } from '../layout';
-import { cellTextureKey } from '../textures';
+import { CELL_RADIUS, ENERGY_GAP, ENERGY_SLOT_SIZE, ENERGY_Y, energySlotX } from '../layout';
+import { TEX_CELL_SIZE, cellTextureKey } from '../textures';
 
 export class EnergyView extends Phaser.GameObjects.Container {
-  private readonly slots: Phaser.GameObjects.Container[] = [];
   private readonly fills: Phaser.GameObjects.Image[] = [];
+  private readonly fillScale: number;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
+
+    this.fillScale = (ENERGY_SLOT_SIZE - 8) / TEX_CELL_SIZE;
 
     for (let i = 0; i < ENERGY_CAPACITY; i++) {
       const x = energySlotX(i, ENERGY_CAPACITY);
@@ -48,13 +49,10 @@ export class EnergyView extends Phaser.GameObjects.Container {
       container.add(bg);
 
       // Image стихии поверх (изначально скрыт).
-      const fill = scene.add
-        .image(0, 0, cellTextureKey(0))
-        .setVisible(false)
-        .setDisplaySize(ENERGY_SLOT_SIZE - 8, ENERGY_SLOT_SIZE - 8);
+      const fill = scene.add.image(0, 0, cellTextureKey(0)).setVisible(false);
+      fill.setScale(this.fillScale);
       container.add(fill);
 
-      this.slots.push(container);
       this.fills.push(fill);
       this.add(container);
     }
@@ -62,16 +60,46 @@ export class EnergyView extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  /** Обновить слоты из состояния Энергии. */
+  /** Обновить слоты из состояния Энергии (с анимациями появления/потребления). */
   update(energy: EnergyState): void {
     const slots = energy.slots;
+
     for (let i = 0; i < ENERGY_CAPACITY; i++) {
       const fill = this.fills[i]!;
-      if (i < slots.length && slots[i] !== undefined) {
+      const wasVisible = fill.visible;
+      const nowFilled = i < slots.length && slots[i] !== undefined;
+
+      if (nowFilled) {
         fill.setTexture(cellTextureKey(slots[i]!));
         fill.setVisible(true);
-      } else {
-        fill.setVisible(false);
+
+        if (!wasVisible) {
+          // Pop-in нового слота.
+          fill.setScale(0);
+          fill.setAlpha(1);
+          this.scene.tweens.add({
+            targets: fill,
+            scaleX: this.fillScale,
+            scaleY: this.fillScale,
+            duration: 280,
+            ease: 'Back.Out',
+          });
+        }
+      } else if (wasVisible) {
+        // Потребление (очищение): слот «стекает».
+        this.scene.tweens.add({
+          targets: fill,
+          alpha: 0,
+          scaleX: 0,
+          scaleY: 0,
+          duration: 340,
+          ease: 'Quad.In',
+          onComplete: () => {
+            fill.setVisible(false);
+            fill.setAlpha(1);
+            fill.setScale(this.fillScale);
+          },
+        });
       }
     }
   }

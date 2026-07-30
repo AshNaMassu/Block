@@ -14,8 +14,15 @@
 import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
-import type { GameState, PlacementResult } from '../../core/types';
-import { COLOR_BG, COLOR_GOLD, COLOR_TEXT, COLOR_TEXT_DIM } from '../../config/elements';
+import type { GameState, PlacementResult, SpecialType } from '../../core/types';
+import {
+  COLOR_BG,
+  COLOR_GOLD,
+  COLOR_MULTI,
+  COLOR_TEXT,
+  COLOR_TEXT_DIM,
+  ELEMENT_COLORS,
+} from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, BACK_BUTTON_X, BACK_BUTTON_Y } from '../layout';
 import { BoardView } from '../objects/BoardView';
 import { HandView } from '../objects/HandView';
@@ -27,6 +34,9 @@ import { SpecialInputController } from '../input/SpecialInputController';
 import { Button } from '../ui/Button';
 import { REG_META } from './MenuScene';
 import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/storage';
+import { LineClearFx } from '../fx/LineClearFx';
+import { CleansingFx } from '../fx/CleansingFx';
+import { ToastManager, type ToastData } from '../ui/Toast';
 
 /** Частота тика Fury (мс) — для истечения таймера по timestamp. */
 const FURY_TICK_MS = 200;
@@ -42,6 +52,9 @@ export class GameScene extends Phaser.Scene {
   private specialInput!: SpecialInputController;
   private furyTimer!: Phaser.Time.TimerEvent;
   private meta!: PlayerMeta;
+  private lineClearFx!: LineClearFx;
+  private cleansingFx!: CleansingFx;
+  private toasts!: ToastManager;
 
   constructor() {
     super('Game');
@@ -61,6 +74,11 @@ export class GameScene extends Phaser.Scene {
     this.energyView = new EnergyView(this);
     this.furyView = new FuryView(this);
     this.handView = new HandView(this);
+
+    // FX и UI.
+    this.lineClearFx = new LineClearFx(this, this.boardView);
+    this.cleansingFx = new CleansingFx(this);
+    this.toasts = new ToastManager(this);
 
     // Кнопка «назад в меню».
     new Button(this, BACK_BUTTON_X, BACK_BUTTON_Y, '← МЕНЮ', () => this.scene.start('Menu'), {
@@ -162,91 +180,176 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  /** После успешного хода: перерисов + проверка game over. */
+  /** После успешного хода: анимации → перерисов → тосты → game over. */
   private afterMove(result: PlacementResult): void {
-    this.refresh();
+    // Рука и счёт уже изменились в engine — обновляем сразу.
+    this.refreshHand();
+    this.refreshHud();
 
-    if (!result.gameOver) {
-      this.showMoveToast(result);
+    if (result.clearedLines.length === 0) {
+      this.refreshBoard();
+      this.refreshEnergy();
+
+      if (!result.gameOver) {
+        this.toasts.showAll(this.buildToasts(result));
+      }
+
+      this.checkGameOver(result);
+      return;
     }
 
+    // На время анимаций блокируем ввод.
+    this.drag.cancel();
+    this.specialInput.cancel();
+    this.lockInput();
+
+    this.lineClearFx.play(result.clearedLines, () => {
+      this.refreshBoard();
+
+      const cleansing = result.cleansing;
+
+      if (cleansing) {
+        // Очищение: вспышка + кольца, затем энергия/радужные/Fury и тосты.
+        this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
+          this.refreshEnergy();
+          this.unlockInput();
+
+          if (!result.gameOver) {
+            this.toasts.showAll(this.buildToasts(result));
+          }
+
+          this.checkGameOver(result);
+        });
+      } else {
+        this.refreshEnergy();
+        this.unlockInput();
+
+        if (!result.gameOver) {
+          this.toasts.showAll(this.buildToasts(result));
+        }
+
+        this.checkGameOver(result);
+      }
+    });
+  }
+
+  /** Game over по результату хода или по отсутствию ходов. */
+  private checkGameOver(result: PlacementResult): void {
     if (result.gameOver || !this.engine.hasAnyMove()) {
       this.showGameOver();
     }
   }
 
-  /**
-   * Временный placeholder для T-040.
-   * Показывает итог хода из PlacementResult.
-   * Позже заменить на нормальный Toast/FX из T-041/T-042/T-043.
-   */
-  private showMoveToast(result: PlacementResult): void {
-    const lines: string[] = [];
+  /** Собрать тосты по результату хода (комбо → очищение → мелкие). */
+  private buildToasts(result: PlacementResult): ToastData[] {
+    const toasts: ToastData[] = [];
 
-    if (result.scoreGained > 0) {
-      lines.push(`+${this.fmt(result.scoreGained)}`);
-    }
-
-    if (result.clearedLines.length > 0) {
-      lines.push(`Линии: ${result.clearedLines.length}`);
-    }
-
-    if (result.elementalLines > 0) {
-      lines.push(`Стихийные линии: ${result.elementalLines}`);
-    }
-
+    // Ось Б — комбо.
     if (result.combo) {
-      lines.push(`Комбо: ${result.combo.lines} линий`);
+      const special = result.specialAdded;
+      toasts.push({
+        title: `КОМБО ×${result.combo.lines}`,
+        subtitle: `+${this.fmt(result.combo.bonusScore)}${
+          special ? ` · ${this.specialLabel(special.type)} ×${special.count}` : ''
+        }`,
+        accent: COLOR_GOLD,
+        big: true,
+      });
     }
 
-    if (result.specialAdded) {
-      lines.push(`Спецфигура: ${result.specialAdded.type} ×${result.specialAdded.count}`);
-    }
-
+    // Ось В/Г — очищение / чистое очищение.
     if (result.cleansing) {
-      lines.push(result.pure ? 'ЧИСТОЕ ОЧИЩЕНИЕ!' : 'ОЧИЩЕНИЕ!');
-      lines.push(`Радужные: +${result.rainbowAdded}`);
+      const c = result.cleansing;
+      toasts.push({
+        title: c.isPure ? 'ЧИСТОЕ ОЧИЩЕНИЕ!' : 'ОЧИЩЕНИЕ!',
+        subtitle: `+${this.fmt(c.baseScore)} · +${c.stars}★ · +${result.rainbowAdded}🌈`,
+        accent: c.isPure ? COLOR_GOLD : ELEMENT_COLORS[c.element]!,
+        big: true,
+      });
     }
 
-    if (result.furyStarted) {
-      lines.push(`FURY ×${result.furyStarted.mult.toFixed(1)}`);
+    // Мелкий тост за обычные ходы с очками.
+    if (toasts.length === 0 && result.scoreGained > 0) {
+      const firstElemental = result.clearedLines.find((l) => l.isElemental);
+      const accent =
+        firstElemental && firstElemental.element !== null
+          ? ELEMENT_COLORS[firstElemental.element]!
+          : COLOR_MULTI;
+
+      toasts.push({
+        title: `+${this.fmt(result.scoreGained)}`,
+        subtitle:
+          result.elementalLines > 0
+            ? 'Стихийная линия! +1⚡'
+            : result.clearedLines.length > 0
+              ? `Линии: ${result.clearedLines.length}`
+              : undefined,
+        accent,
+        big: false,
+      });
     }
 
-    if (lines.length === 0) {
-      return;
+    return toasts;
+  }
+
+  /** Человекочитаемое имя спецфигуры для тостов. */
+  private specialLabel(type: SpecialType): string {
+    switch (type) {
+      case 'bomb':
+        return '💣 Bomb';
+      case 'line':
+        return '⚡ Line';
+      case 'cross':
+        return '✚ Cross';
+      case 'apocalypse':
+        return '☄ Apocalypse';
+      default:
+        return type;
     }
+  }
 
-    const toast = this.add
-      .text(DESIGN_WIDTH / 2, 520, lines.join('\n'), {
-        fontFamily: 'system-ui, Arial, sans-serif',
-        fontSize: '44px',
-        color: this.hex(COLOR_GOLD),
-        align: 'center',
-        stroke: '#000000',
-        strokeThickness: 6,
-      })
-      .setOrigin(0.5)
-      .setDepth(300);
+  /** Блокировка ввода на время анимаций. */
+  private lockInput(): void {
+    this.input.enabled = false;
+  }
 
-    this.tweens.add({
-      targets: toast,
-      y: 440,
-      alpha: 0,
-      duration: 1400,
-      delay: 900,
-      ease: 'Cubic.Out',
-      onComplete: () => toast.destroy(),
-    });
+  /** Разблокировка ввода после анимаций. */
+  private unlockInput(): void {
+    this.input.enabled = true;
   }
 
   /** Полный перерисов из состояния engine. */
   private refresh(): void {
+    this.refreshBoard();
+    this.refreshHand();
+    this.refreshEnergy();
+    this.refreshHud();
+  }
+
+  /** Обновить только поле. */
+  private refreshBoard(): void {
+    this.boardView.update(this.engine.state.grid);
+  }
+
+  /** Обновить руку. */
+  private refreshHand(): void {
+    this.handView.update(this.engine.state.hand);
+  }
+
+  /** Обновить энергию и Fury-индикатор. */
+  private refreshEnergy(): void {
     const now = Date.now();
     const state: GameState = this.engine.state;
-    this.boardView.update(state.grid);
-    this.handView.update(state.hand);
+
     this.energyView.update(state.energy);
     this.furyView.update(state.fury, now);
+  }
+
+  /** Обновить HUD (счёт/рекорд/звёзды/множитель). */
+  private refreshHud(): void {
+    const now = Date.now();
+    const state: GameState = this.engine.state;
+
     const mult = currentMultiplier(state.stars, state.fury, now);
     this.hudView.update(state, mult);
   }

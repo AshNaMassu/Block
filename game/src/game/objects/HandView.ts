@@ -59,6 +59,16 @@ export class HandView extends Phaser.GameObjects.Container {
         view.setPosition(slot.x, slot.y);
         this.add(view);
         this.pieceViews.set(piece.id, view);
+
+        // Pop-in новой фигуры (особенно наградных — радужных/спецфигур).
+        view.setScale(0);
+        this.scene.tweens.add({
+          targets: view,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 300,
+          ease: 'Back.Out',
+        });
       }
     }
   }

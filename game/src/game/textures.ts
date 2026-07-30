@@ -34,6 +34,11 @@ export function specialTextureKey(type: string): string {
   return `${TEX_PREFIX}-special-${type}`;
 }
 
+/** FX-текстуры для line clear (Milestone 3). */
+export const TEX_FX_GLOW = `${TEX_PREFIX}-fx-glow`;
+export const TEX_FX_BEAM = `${TEX_PREFIX}-fx-beam`;
+export const TEX_FX_RING = `${TEX_PREFIX}-fx-ring`;
+
 /** Размер текстуры клетки в px (квадрат, с запасом под обводку). */
 export const TEX_CELL_SIZE = 120;
 

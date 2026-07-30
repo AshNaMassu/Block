@@ -18,6 +18,7 @@ export class FuryView extends Phaser.GameObjects.Container {
   private readonly label: Phaser.GameObjects.Text;
   private readonly aura: Phaser.GameObjects.Graphics;
   private readonly auraColor: Phaser.GameObjects.Graphics;
+  private wasActive = false;
 
   constructor(scene: Phaser.Scene) {
     super(scene, FURY_X, FURY_Y);
@@ -46,9 +47,25 @@ export class FuryView extends Phaser.GameObjects.Container {
     const active = tickFury(fury, now);
     if (!active) {
       this.setVisible(false);
+      this.wasActive = false;
       return;
     }
     this.setVisible(true);
+
+    // Pop-in при старте Fury.
+    if (!this.wasActive) {
+      this.wasActive = true;
+      this.setScale(0.5);
+      this.setAlpha(0);
+      this.scene.tweens.add({
+        targets: this,
+        scaleX: 1,
+        scaleY: 1,
+        alpha: 1,
+        duration: 380,
+        ease: 'Back.Out',
+      });
+    }
 
     const remainSec = Math.max(0, Math.ceil((active.until - now) / 1000));
     this.label.setText(`FURY  ×${active.mult.toFixed(1)}  ${remainSec}s`);
