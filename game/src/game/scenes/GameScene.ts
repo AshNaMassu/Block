@@ -14,7 +14,7 @@
 import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
-import type { GameState, PlacementResult, SpecialType } from '../../core/types';
+import type { Cell, GameState, Piece, PlacementResult, SpecialType, Vec2 } from '../../core/types';
 import {
   COLOR_BG,
   COLOR_GOLD,
@@ -93,14 +93,14 @@ export class GameScene extends Phaser.Scene {
       engine: this.engine,
       boardView: this.boardView,
       handView: this.handView,
-      onPlaced: (result) => this.afterMove(result),
+      onPlaced: (result, piece) => this.afterMove(result, piece),
     });
     this.specialInput = new SpecialInputController({
       scene: this,
       engine: this.engine,
       boardView: this.boardView,
       handView: this.handView,
-      onUsed: (result) => this.afterMove(result),
+      onUsed: (result, piece) => this.afterMove(result, piece),
     });
 
     // Единый обработчик pointerdown: спец-режим имеет приоритет.
@@ -181,7 +181,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   /** После успешного хода: анимации → перерисов → тосты → game over. */
-  private afterMove(result: PlacementResult): void {
+  private afterMove(result: PlacementResult, piece: Piece): void {
     // Рука и счёт уже изменились в engine — обновляем сразу.
     this.refreshHand();
     this.refreshHud();
@@ -202,6 +202,8 @@ export class GameScene extends Phaser.Scene {
     this.drag.cancel();
     this.specialInput.cancel();
     this.lockInput();
+
+    this.showPlacedCells(result.placedCells, piece);
 
     this.lineClearFx.play(result.clearedLines, () => {
       this.refreshBoard();
@@ -238,6 +240,25 @@ export class GameScene extends Phaser.Scene {
     if (result.gameOver || !this.engine.hasAnyMove()) {
       this.showGameOver();
     }
+  }
+
+  /** Показать поставленные клетки на поле до анимации очистки линий. */
+  private showPlacedCells(cells: Vec2[], piece: Piece): void {
+    const cell = this.cellFromPiece(piece);
+    for (const c of cells) {
+      this.boardView.getCell(c.x, c.y)?.updateCell(cell);
+    }
+  }
+
+  /** Как выглядит клетка поставленной фигуры (для отрисовки до очистки). */
+  private cellFromPiece(piece: Piece): Cell {
+    if (piece.kind === 'special') {
+      return { element: -1, multi: true, special: true };
+    }
+    if (piece.kind === 'rainbow') {
+      return { element: -1, multi: true, special: false };
+    }
+    return { element: piece.element ?? 0, multi: false, special: false };
   }
 
   /** Собрать тосты по результату хода (комбо → очищение → мелкие). */

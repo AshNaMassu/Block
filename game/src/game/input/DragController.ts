@@ -40,7 +40,7 @@ export interface DragControllerDeps {
   boardView: BoardView;
   handView: HandView;
   /** Колбэк после успешного хода. Передаёт результат из engine для FX/UI. */
-  onPlaced: (result: PlacementResult) => void;
+  onPlaced: (result: PlacementResult, piece: Piece) => void;
 }
 
 export class DragController {
@@ -134,7 +134,7 @@ export class DragController {
       const result = this.deps.engine.placePiece(piece.id, target);
       placed = result.ok;
       if (placed) {
-        this.deps.onPlaced(result);
+        this.deps.onPlaced(result, piece);
       }
     }
 

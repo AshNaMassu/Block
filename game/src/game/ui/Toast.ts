@@ -6,7 +6,7 @@
  * контейнер (без создания объектов на каждый тост), очередь с последовательным
  * показом.
  */
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import { COLOR_BG, COLOR_TEXT_DIM } from '../../config/elements';
 import { DESIGN_WIDTH } from '../layout';
 
@@ -38,7 +38,10 @@ export class ToastManager {
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
 
-    this.panel = scene.add.container(DESIGN_WIDTH / 2, TOAST_Y).setDepth(300).setVisible(false);
+    this.panel = scene.add
+      .container(DESIGN_WIDTH / 2, TOAST_Y)
+      .setDepth(300)
+      .setVisible(false);
 
     this.bg = scene.add.graphics();
 

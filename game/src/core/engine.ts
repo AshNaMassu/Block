@@ -175,7 +175,7 @@ export class GameEngine {
       }
     }
 
-    // Шаг 7. Применить Очищение: очки/звёзды/радужные (множитель ДО нового Fury)
+    // Шаг 7. Применить Очищение: очки/звёзды (множитель ДО нового Fury)
     let starsGained = 0;
     let rainbowAdded = 0;
     let furyStarted = null;
@@ -186,17 +186,12 @@ export class GameEngine {
       this.state.score += cleansingScore;
       starsGained += cleansing.stars;
       this.state.stars += cleansing.stars;
-
-      // Радужные ДО Fury (конвертация по multBefore)
-      overflowConversionScore += addRainbowPieces(
-        this.state.hand,
-        cleansing.rainbowCount,
-        multBefore,
-      );
-      rainbowAdded = cleansing.rainbowCount;
     }
 
-    // Шаг 8. Выдать комбо-спецфигуру (после возможного апгрейда Чистым, ДО Fury)
+    // Шаг 8. Выдать комбо-спецфигуру ПЕРЕД радужными (до Fury).
+    // Спецфигура — редкая тактическая награда за комбо: она должна занять
+    // бонусный слот раньше радужных. Иначе при комбо+Очищении радужные
+    // забивают все 3 бонусных слота, и спецфигура молча конвертируется в очки.
     let specialAdded: SpecialReward | null = null;
     if (comboSpecial && comboSpecial.count > 0) {
       overflowConversionScore += addSpecialPieces(
@@ -207,6 +202,17 @@ export class GameEngine {
       );
       specialAdded = comboSpecial;
     }
+
+    // Шаг 9. Выдать радужные (после спецфигуры, до Fury — конвертация по multBefore).
+    if (cleansing) {
+      overflowConversionScore += addRainbowPieces(
+        this.state.hand,
+        cleansing.rainbowCount,
+        multBefore,
+      );
+      rainbowAdded = cleansing.rainbowCount;
+    }
+
     this.state.score += overflowConversionScore;
 
     // Шаг 9. Запустить Fury (после всех конвертаций руки)

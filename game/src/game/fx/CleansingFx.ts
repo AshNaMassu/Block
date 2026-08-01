@@ -7,7 +7,7 @@
  *
  * Кольца через FxPool (object pool).
  */
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import type { ElementId } from '../../core/types';
 import { BOARD_PIXEL_SIZE, BOARD_TOP, BOARD_X, DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { COLOR_GOLD, ELEMENT_COLORS } from '../../config/elements';

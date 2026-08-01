@@ -42,7 +42,7 @@ export interface SpecialInputDeps {
   boardView: BoardView;
   handView: HandView;
   /** Колбэк после успешного хода. Передаёт результат из engine для FX/UI. */
-  onUsed: (result: PlacementResult) => void;
+  onUsed: (result: PlacementResult, piece: Piece) => void;
 }
 
 export class SpecialInputController {
@@ -186,7 +186,7 @@ export class SpecialInputController {
 
     const result = this.deps.engine.useSpecial(piece.id, this.target, this.orientation);
     this.cancel();
-    if (result.ok) this.deps.onUsed(result);
+    if (result.ok) this.deps.onUsed(result, piece);
   }
 
   private cycleOrientation(): void {
