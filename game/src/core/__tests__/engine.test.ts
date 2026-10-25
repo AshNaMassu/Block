@@ -112,8 +112,8 @@ describe('engine integration — 1 стихийная линия', () => {
   });
 });
 
-describe('engine integration — 2-line комбо → Bomb', () => {
-  it('замыкает строку + столбец одним ходом → комбо, спецфигура Bomb', () => {
+describe('engine integration — 2-line комбо → Пожар', () => {
+  it('замыкает строку + столбец одним ходом → комбо, спецфигура Fire', () => {
     const e = makeEngine(undefined, 42);
     // Строка 3: 7 огня, пустая (3,3)
     for (let x = 0; x < BOARD_SIZE; x++) if (x !== 3) setCell(e.state.grid, x, 3, fire());
@@ -128,11 +128,12 @@ describe('engine integration — 2-line комбо → Bomb', () => {
     expect(r.elementalLines).toBe(2); // строка + столбец
     expect(r.combo).not.toBeNull();
     expect(r.combo!.lines).toBe(2);
-    expect(r.specialAdded).toEqual({ type: 'bomb', count: 1 });
-    // В руке должна появиться спецфигура
+    expect(r.specialAdded).toEqual({ type: 'fire', count: 1 });
+    // В руке должна появиться спецфигура (с реальной формой 1×1)
     const specials = e.state.hand.filter((p) => p?.kind === 'special');
     expect(specials).toHaveLength(1);
-    expect(specials[0]?.special).toBe('bomb');
+    expect(specials[0]?.special).toBe('fire');
+    expect(specials[0]?.shape).toEqual([{ x: 0, y: 0 }]);
   });
 });
 
@@ -189,10 +190,10 @@ describe('engine integration — Чистое Очищение + апгрейд 
     const r = e.placePiece('t1', { x: 0, y: 0 });
     expect(r.pure).toBe(true);
     expect(r.elementalLines).toBe(1); // без комбо
-    expect(r.specialAdded).toEqual({ type: 'bomb', count: 1 }); // fallback
+    expect(r.specialAdded).toEqual({ type: 'fire', count: 1 }); // fallback
   });
 
-  it('pure + combo Bomb → Line (апгрейд)', () => {
+  it('pure + combo Fire → Tide (апгрейд)', () => {
     const e = makeEngine(undefined, 42);
     e.state.energy.slots = [0, 0]; // pure если gained — [0]
     // Пересечение 2 стихийных линий огня (combo) + consumed [0,0,0] = pure
@@ -204,53 +205,200 @@ describe('engine integration — Чистое Очищение + апгрейд 
     const r = e.placePiece('t1', { x: 3, y: 3 });
     expect(r.pure).toBe(true);
     expect(r.elementalLines).toBe(2); // combo
-    // Combo дал Bomb×1, pure апгрейдит → Line×1
-    expect(r.specialAdded).toEqual({ type: 'line', count: 1 });
+    // Combo дал Fire×1, pure апгрейдит → Tide×1
+    expect(r.specialAdded).toEqual({ type: 'tide', count: 1 });
   });
 });
 
-describe('engine integration — спецфигура wildcard-fill', () => {
-  it('Bomb заполняет 2×2 пустых клеток, не трогает занятые', () => {
-    const e = makeEngine(undefined, 42);
-    // Поле: одна занятая клетка в (0,0), остальное пусто в зоне 2×2
-    setCell(e.state.grid, 0, 0, fire());
-    // Рука: Bomb в бонусном слоте
-    e.state.hand[3] = { id: 'b1', kind: 'special', shape: [], special: 'bomb' };
-
-    const r = e.useSpecial('b1', { x: 0, y: 0 });
-    expect(r.ok).toBe(true);
-    expect(r.specialFill).not.toBeNull();
-    expect(r.specialFill!.type).toBe('bomb');
-    expect(r.specialFill!.filledCells).toBe(3); // 2×2 - 1 занятая
-    expect(getCell(e.state.grid, 0, 0)).toEqual(fire()); // не перезаписана
-    expect(getCell(e.state.grid, 1, 0)?.multi).toBe(true); // заполнена multi
-    expect(getCell(e.state.grid, 1, 0)?.special).toBe(true);
+describe('engine integration — спецфигуры-детонаторы', () => {
+  const fireSpecial = (id: string): Piece => ({
+    id,
+    kind: 'special',
+    shape: [{ x: 0, y: 0 }],
+    special: 'fire',
   });
 
-  it('спецфигура НЕ даёт комбо-спецфигуру (защита от рекурсии)', () => {
+  it('Пожар: выжигает 3×3, оставляет след из огня, даёт +1⚡ огня', () => {
     const e = makeEngine(undefined, 42);
-    // Подстроим: спецфигура Line заполняет строку так, что замыкает стихийную линию
-    // Строка 0: 7 огня, пустая (3,0)
-    for (let x = 0; x < BOARD_SIZE; x++) if (x !== 3) setCell(e.state.grid, x, 0, fire());
-    e.state.hand[3] = { id: 'l1', kind: 'special', shape: [], special: 'line', orientation: 'row' };
+    setCell(e.state.grid, 2, 2, { element: 1, multi: false, special: false }); // разрушится
+    e.state.hand[3] = fireSpecial('f1');
 
-    const r = e.useSpecial('l1', { x: 3, y: 0 }, 'row');
+    const r = e.placePiece('f1', { x: 3, y: 3 });
     expect(r.ok).toBe(true);
-    // Замкнулась 1 стихийная линия огня — но без комбо (нужно 2+)
-    expect(r.elementalLines).toBe(1);
-    expect(r.combo).toBeNull(); // спецфигура не даёт комбо
-    expect(r.specialAdded).toBeNull(); // и спецфигуры новой нет
+    expect(r.detonation).not.toBeNull();
+    expect(r.detonation!.type).toBe('fire');
+    // Вода (2,2) + сама клетка фигуры (3,3) — обе выжжены детонацией
+    expect(r.detonation!.destroyed).toEqual([
+      { x: 2, y: 2 },
+      { x: 3, y: 3 },
+    ]);
+    // Вся 3×3 вокруг (3,3) — след из огня (обычные клетки, не multi)
+    expect(r.detonation!.seeded).toHaveLength(9);
+    expect(getCell(e.state.grid, 2, 2)).toEqual(fire());
+    expect(getCell(e.state.grid, 4, 4)).toEqual(fire());
+    expect(e.state.energy.slots).toEqual([0]); // +1⚡ стихии детонатора
+    expect(r.scoreGained).toBeGreaterThan(0);
   });
 
-  it('нет пустых клеток → ok=false', () => {
+  it('Прилив row: смывает строку целиком (стихийная линия воды)', () => {
     const e = makeEngine(undefined, 42);
-    // Заполнить всё поле
     for (let x = 0; x < BOARD_SIZE; x++)
-      for (let y = 0; y < BOARD_SIZE; y++) setCell(e.state.grid, x, y, fire());
-    e.state.hand[3] = { id: 'b1', kind: 'special', shape: [], special: 'bomb' };
-    const r = e.useSpecial('b1', { x: 2, y: 2 });
+      if (x !== 6 && x !== 7) setCell(e.state.grid, x, 0, fire());
+    e.state.hand[3] = {
+      id: 't1',
+      kind: 'special',
+      shape: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      special: 'tide',
+      orientation: 'row',
+    };
+
+    const r = e.placePiece('t1', { x: 6, y: 0 }, 'row');
+    expect(r.ok).toBe(true);
+    expect(r.detonation!.destroyed).toHaveLength(8); // занятая часть строки + клетки фигуры
+    // След: вся строка водой → замыкается стихийная линия → очищается
+    expect(r.detonation!.seeded).toHaveLength(8);
+    expect(r.elementalLines).toBe(1);
+    expect(getCell(e.state.grid, 0, 0)).toBeNull(); // строка смылась
+    expect(getCell(e.state.grid, 7, 0)).toBeNull();
+  });
+
+  it('Прилив column: вертикальная постановка смывает столбец', () => {
+    const e = makeEngine(undefined, 42);
+    for (let y = 2; y < BOARD_SIZE; y++) setCell(e.state.grid, 5, y, fire());
+    e.state.hand[3] = {
+      id: 't1',
+      kind: 'special',
+      shape: [
+        { x: 0, y: 0 },
+        { x: 0, y: 1 },
+      ],
+      special: 'tide',
+      orientation: 'column',
+    };
+
+    const r = e.placePiece('t1', { x: 5, y: 0 }, 'column');
+    expect(r.ok).toBe(true);
+    expect(r.detonation!.destroyed).toHaveLength(8); // весь столбец занят
+    expect(r.elementalLines).toBe(1); // столбец воды смылся
+    expect(getCell(e.state.grid, 5, 3)).toBeNull(); // столбец смылся
+    expect(getCell(e.state.grid, 5, 0)).toBeNull();
+  });
+
+  it('Вихрь: сметает самую частую стихию, без комбо-награды', () => {
+    const e = makeEngine(undefined, 42);
+    // 3 огня и 1 вода — вихрь сметёт огонь
+    setCell(e.state.grid, 0, 0, fire());
+    setCell(e.state.grid, 1, 1, fire());
+    setCell(e.state.grid, 2, 2, fire());
+    setCell(e.state.grid, 3, 3, { element: 1, multi: false, special: false });
+    e.state.hand[3] = {
+      id: 'v1',
+      kind: 'special',
+      shape: [{ x: 0, y: 0 }],
+      special: 'vortex',
+    };
+
+    const r = e.placePiece('v1', { x: 7, y: 7 });
+    expect(r.ok).toBe(true);
+    expect(r.detonation!.sweptElement).toBe(0);
+    expect(r.detonation!.destroyed).toHaveLength(3);
+    expect(getCell(e.state.grid, 0, 0)).toBeNull();
+    expect(getCell(e.state.grid, 3, 3)).not.toBeNull(); // вода не тронута
+    expect(r.combo).toBeNull(); // защита от рекурсии
+    expect(e.state.energy.slots).toEqual([3]); // +1⚡ воздуха
+  });
+
+  it('Родник: перекрашивает 4×4 в доминанту области', () => {
+    const e = makeEngine(undefined, 42);
+    // В области 4×4 вокруг (3,3): огонь в (2,2), вода в (5,5); клетки 2×2 фигуры пусты
+    setCell(e.state.grid, 2, 2, fire());
+    setCell(e.state.grid, 5, 5, { element: 1, multi: false, special: false });
+    e.state.hand[3] = {
+      id: 's1',
+      kind: 'special',
+      shape: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ],
+      special: 'spring',
+    };
+
+    const r = e.placePiece('s1', { x: 3, y: 3 });
+    expect(r.ok).toBe(true);
+    expect(r.detonation!.type).toBe('spring');
+    expect(r.detonation!.destroyed).toEqual([]);
+    // Доминанта области: 4 клетки земли (фигура) > 1 огонь + 1 вода → земля.
+    // Огонь и вода перекрашиваются в землю.
+    expect(r.detonation!.repainted).toEqual([
+      { x: 2, y: 2 },
+      { x: 5, y: 5 },
+    ]);
+    // Вся область 4×4 — земля
+    for (let x = 2; x <= 5; x++) {
+      for (let y = 2; y <= 5; y++) {
+        expect(getCell(e.state.grid, x, y)).toEqual({
+          element: 2,
+          multi: false,
+          special: false,
+        });
+      }
+    }
+    expect(e.state.energy.slots).toEqual([2]); // +1⚡ земли
+  });
+
+  it('спецфигура НЕ даёт комбо даже при 2 стихийных линиях (защита от рекурсии)', () => {
+    const e = makeEngine(undefined, 42);
+    // Строка 0: 6 огня + 2 пустые (6,0),(7,0) — Прилив row заполнит их водой,
+    // линия замкнётся как... вода+огонь = НЕ стихийная. Нужно иначе:
+    // строка из воды: 6 воды + 2 пустые, Прилив row на (6,0) → 8 воды = стихийная.
+    for (let x = 0; x < BOARD_SIZE; x++)
+      if (x !== 6 && x !== 7)
+        setCell(e.state.grid, x, 0, { element: 1, multi: false, special: false });
+    // Столбец 6: 7 воды, пустая (6,0)
+    for (let y = 1; y < BOARD_SIZE; y++)
+      setCell(e.state.grid, 6, y, { element: 1, multi: false, special: false });
+    e.state.hand[3] = {
+      id: 't1',
+      kind: 'special',
+      shape: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      special: 'tide',
+      orientation: 'row',
+    };
+
+    const r = e.placePiece('t1', { x: 6, y: 0 }, 'row');
+    expect(r.ok).toBe(true);
+    // Строка 0 и столбец 6 стали водяными и замкнулись (2 стихийные линии),
+    // но комбо за спецфигуру не начисляется.
+    expect(r.elementalLines).toBe(2);
+    expect(r.combo).toBeNull();
+    expect(r.specialAdded).toBeNull();
+  });
+
+  it('невалидная постановка спецфигуры → ok=false', () => {
+    const e = makeEngine(undefined, 42);
+    setCell(e.state.grid, 0, 0, fire());
+    setCell(e.state.grid, 1, 0, fire());
+    e.state.hand[3] = {
+      id: 't1',
+      kind: 'special',
+      shape: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      special: 'tide',
+      orientation: 'row',
+    };
+    const r = e.placePiece('t1', { x: 0, y: 0 }, 'row');
     expect(r.ok).toBe(false);
-    expect(r.reason).toBe('no_empty_cells');
+    expect(r.reason).toBe('cannot_place');
   });
 });
 
@@ -332,7 +480,12 @@ describe('engine integration — Game Over', () => {
       { x: 1, y: 0 },
       { x: 2, y: 0 },
     ]);
-    e.state.hand[3] = { id: 'b1', kind: 'special', shape: [], special: 'bomb' };
+    e.state.hand[3] = {
+      id: 'b1',
+      kind: 'special',
+      shape: [{ x: 0, y: 0 }],
+      special: 'fire',
+    };
     expect(e.hasAnyMove()).toBe(true); // спасает спецфигура
   });
 });

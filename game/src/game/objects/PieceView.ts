@@ -2,7 +2,9 @@
  * PieceView — отображение одной фигуры из руки.
  *
  * Рисует клетки фигуры (по piece.shape) с центрированием в bounding box.
- * Фаза А: normal (по element), rainbow (1×1 multi), special (иконка).
+ * normal (по element), rainbow (1×1 multi), special — детонатор: клетки цвета
+ * своей стихии + золотой контур + символ-эмодзи. Силуэт читается до постановки:
+ * Пожар 1×1 с огненным ядром, Прилив 1×2 каплей, Вихрь — спираль, Родник 2×2 — крона.
  *
  * Используется HandView'ом и DragController'ом. Origin (0,0) контейнера —
  * центр bounding box'а фигуры.
@@ -11,13 +13,8 @@ import Phaser from 'phaser';
 import type { Piece } from '../../core/types';
 import { ELEMENT_COLORS, COLOR_GOLD, COLOR_MULTI } from '../../config/elements';
 import { CELL_RADIUS } from '../layout';
-import {
-  TEX_CELL_SIZE,
-  TEX_MULTI,
-  TEX_RAINBOW,
-  cellTextureKey,
-  specialTextureKey,
-} from '../textures';
+import { TEX_CELL_SIZE, TEX_MULTI, TEX_RAINBOW, cellTextureKey } from '../textures';
+import { SPECIAL_ELEMENT } from '../../core/specials';
 
 /** Размер одной клетки фигуры внутри слота руки. */
 export const PIECE_VIEW_CELL = 70;
@@ -25,17 +22,18 @@ export const PIECE_VIEW_CELL = 70;
 /** Масштаб: текстура клетки 120px → отображаем PIECE_VIEW_CELL. */
 const CELL_SCALE = PIECE_VIEW_CELL / TEX_CELL_SIZE;
 
-/** Символы спецфигур (GDD §13). */
+/** Символы детонаторов (поверх клеток цвета стихии). */
 const SPECIAL_SYMBOLS: Record<string, string> = {
-  bomb: '💣',
-  line: '⚡',
-  cross: '✚',
-  apocalypse: '☄',
+  fire: '🔥',
+  tide: '💧',
+  vortex: '🌀',
+  spring: '🌿',
 };
 
 export class PieceView extends Phaser.GameObjects.Container {
   readonly pieceId: string;
   readonly slotSize: number;
+  private selectedMarker: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene, piece: Piece, slotSize: number) {
     super(scene, 0, 0);
@@ -46,16 +44,11 @@ export class PieceView extends Phaser.GameObjects.Container {
     scene.add.existing(this);
   }
 
-  /** Перерисовать фигуру (при смене содержимого слота). */
+  /** Перерисовать фигуру (при смене содержимого слота или ориентации Прилива). */
   renderPiece(piece: Piece): void {
     this.removeAll(true);
+    this.selectedMarker = null;
 
-    if (piece.kind === 'special') {
-      this.renderSpecial(piece);
-      return;
-    }
-
-    // normal/rainbow: клетки по shape, центрированные.
     const cells = piece.shape;
     const minX = Math.min(...cells.map((c) => c.x));
     const minY = Math.min(...cells.map((c) => c.y));
@@ -67,11 +60,16 @@ export class PieceView extends Phaser.GameObjects.Container {
     const offsetY = -height / 2 + PIECE_VIEW_CELL / 2;
 
     const isRainbow = piece.kind === 'rainbow';
+    const isSpecial = piece.kind === 'special';
+    // Детонатор: клетки цвета своей стихии (Пожар — огненное ядро, Прилив — капля,
+    // Вихрь — воздух, Родник — земля). Стихийная клетка 1×1 без special выглядит так же.
     const texKey = isRainbow
       ? TEX_RAINBOW
-      : piece.element !== undefined
-        ? cellTextureKey(piece.element)
-        : TEX_MULTI;
+      : isSpecial
+        ? cellTextureKey(SPECIAL_ELEMENT[piece.special ?? 'fire'])
+        : piece.element !== undefined
+          ? cellTextureKey(piece.element)
+          : TEX_MULTI;
 
     for (const c of cells) {
       const img = this.scene.add
@@ -84,36 +82,30 @@ export class PieceView extends Phaser.GameObjects.Container {
       this.add(img);
     }
 
-    // Золотой контур для rainbow.
-    if (isRainbow) {
+    // Символ детонатора в центре (иллюзия «ядра»: 🌀 спираль, 🌿 крона и т.д.).
+    if (isSpecial) {
+      const label = this.scene.add
+        .text(0, 0, SPECIAL_SYMBOLS[piece.special ?? 'fire'], {
+          fontFamily: 'system-ui, Arial, sans-serif',
+          fontSize: '44px',
+        })
+        .setOrigin(0.5);
+      this.add(label);
+    }
+
+    // Золотой контур для rainbow и спецфигур (бонусные фигуры).
+    if (isRainbow || isSpecial) {
       const outline = this.scene.add.graphics();
       outline.lineStyle(4, COLOR_GOLD, 1);
       outline.strokeRoundedRect(
         offsetX - PIECE_VIEW_CELL / 2 + 2,
         offsetY - PIECE_VIEW_CELL / 2 + 2,
-        PIECE_VIEW_CELL - 4,
-        PIECE_VIEW_CELL - 4,
+        width - 4,
+        height - 4,
         CELL_RADIUS * CELL_SCALE,
       );
       this.add(outline);
     }
-  }
-
-  /** Отрисовать спецфигуру (фон-текстура + символ поверх). GDD §13: 💣⚡✚☄. */
-  private renderSpecial(piece: Piece): void {
-    const tex = specialTextureKey(piece.special ?? 'bomb');
-    const img = this.scene.add.image(0, 0, tex).setScale(CELL_SCALE);
-    this.add(img);
-
-    // Символ спецфигуры поверх.
-    const symbol = SPECIAL_SYMBOLS[piece.special ?? 'bomb'];
-    const label = this.scene.add
-      .text(0, 0, symbol, {
-        fontFamily: 'system-ui, Arial, sans-serif',
-        fontSize: '40px',
-      })
-      .setOrigin(0.5);
-    this.add(label);
   }
 
   /**
@@ -137,9 +129,43 @@ export class PieceView extends Phaser.GameObjects.Container {
     this.setAlpha(dim ? 0.3 : 1);
   }
 
-  /** Подсветка выбранной спецфигуры (Фаза Б). */
-  setSelected(_selected: boolean): void {
-    // TODO Фаза Б: подсветка для SpecialInputController.
+  /**
+   * Подсветка выбранной спецфигуры (мердж в руке): пульсирующий белый контур.
+   * Снимается повторным вызовом setSelected(false) или renderPiece.
+   */
+  setSelected(selected: boolean): void {
+    if (this.selectedMarker) {
+      this.selectedMarker.destroy();
+      this.selectedMarker = null;
+      this.scene.tweens.killTweensOf(this);
+      this.setScale(1);
+    }
+    if (!selected) return;
+
+    const cells = this.list.filter(
+      (o) => o instanceof Phaser.GameObjects.Image,
+    ) as Phaser.GameObjects.Image[];
+    if (cells.length === 0) return;
+    const minX = Math.min(...cells.map((c) => c.x - PIECE_VIEW_CELL / 2));
+    const maxX = Math.max(...cells.map((c) => c.x + PIECE_VIEW_CELL / 2));
+    const minY = Math.min(...cells.map((c) => c.y - PIECE_VIEW_CELL / 2));
+    const maxY = Math.max(...cells.map((c) => c.y + PIECE_VIEW_CELL / 2));
+
+    const g = this.scene.add.graphics();
+    g.lineStyle(5, 0xffffff, 1);
+    g.strokeRoundedRect(minX - 4, minY - 4, maxX - minX + 8, maxY - minY + 8, CELL_RADIUS);
+    this.add(g);
+    this.selectedMarker = g;
+
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.12,
+      scaleY: 1.12,
+      duration: 350,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
   }
 }
 

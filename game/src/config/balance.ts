@@ -34,8 +34,8 @@ export const SCORE_LINE_NORMAL = 1000;
 /** Очки за стихийную линию 8/8 (GDD 3.1). */
 export const SCORE_LINE_ELEMENTAL = 2500;
 
-/** Очки за каждую клетку, заполненную спецфигурой (GDD 3.3). */
-export const SCORE_SPECIAL_FILL_PER_CELL = 100;
+/** Очки за каждую клетку, затронутую детонацией спецфигуры (разрушение/след/перекраска). */
+export const SCORE_SPECIAL_DETONATION_PER_CELL = 100;
 
 /** Конвертация радужной в очки при переполнении руки (GDD 3.8). */
 export const SCORE_RAINBOW_OVERFLOW = 500;
@@ -73,31 +73,32 @@ export const OVERFLOW_TABLE: readonly OverflowRow[] = [
 ];
 
 /**
- * Таблица комбо стихийных линий (GDD 3.2, Ось Б).
+ * Таблица комбо стихийных линий (Ось Б).
  * Индекс = число стихийных линий (2..6). 0/1 → null (нет награды).
+ * Спецфигуры — детонаторы: fire → tide → vortex → spring.
  */
 export interface ComboRow {
   bonusScore: number;
-  specialType: 'bomb' | 'line' | 'cross' | 'apocalypse';
+  specialType: 'fire' | 'tide' | 'vortex' | 'spring';
   specialCount: number;
 }
 
 export const COMBO_TABLE: readonly (ComboRow | null)[] = [
   null,
   null,
-  { bonusScore: 2000, specialType: 'bomb', specialCount: 1 },
-  { bonusScore: 6000, specialType: 'line', specialCount: 1 },
-  { bonusScore: 12000, specialType: 'cross', specialCount: 1 },
-  { bonusScore: 20000, specialType: 'apocalypse', specialCount: 1 },
-  { bonusScore: 30000, specialType: 'apocalypse', specialCount: 2 },
+  { bonusScore: 2000, specialType: 'fire', specialCount: 1 },
+  { bonusScore: 6000, specialType: 'tide', specialCount: 1 },
+  { bonusScore: 12000, specialType: 'vortex', specialCount: 1 },
+  { bonusScore: 20000, specialType: 'spring', specialCount: 1 },
+  { bonusScore: 30000, specialType: 'spring', specialCount: 2 },
 ];
 
-/** Порядок эскалации спецфигур (для апгрейда при Чистом Очищении, GDD 4.4). */
-export const SPECIAL_ESCALATION: readonly ('bomb' | 'line' | 'cross' | 'apocalypse')[] = [
-  'bomb',
-  'line',
-  'cross',
-  'apocalypse',
+/** Порядок эскалации детонаторов (апгрейд при Чистом Очищении и мердж в руке). */
+export const SPECIAL_ESCALATION: readonly ('fire' | 'tide' | 'vortex' | 'spring')[] = [
+  'fire',
+  'tide',
+  'vortex',
+  'spring',
 ];
 
 // ─── Множитель и Fury (GDD 4.6, 4.7) ────────────────────────────────────────

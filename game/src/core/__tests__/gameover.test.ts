@@ -34,8 +34,19 @@ const rainbowPiece = (id: string): Piece => ({
 const specialPiece = (id: string): Piece => ({
   id,
   kind: 'special',
-  shape: [],
-  special: 'bomb',
+  shape: [{ x: 0, y: 0 }],
+  special: 'fire',
+});
+const springPiece = (id: string): Piece => ({
+  id,
+  kind: 'special',
+  shape: [
+    { x: 0, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 1, y: 1 },
+  ],
+  special: 'spring',
 });
 
 describe('gameover', () => {
@@ -66,7 +77,7 @@ describe('gameover', () => {
       expect(canUsePiece(s, s.hand[0]!)).toBe(false);
     });
 
-    it('special: есть пустая клетка → true (wildcard-fill)', () => {
+    it('special-детонатор: есть пустая клетка → true (ставится по форме)', () => {
       const s = makeState([specialPiece('a')]);
       expect(canUsePiece(s, s.hand[0]!)).toBe(true);
     });
@@ -76,6 +87,15 @@ describe('gameover', () => {
       for (let x = 0; x < BOARD_SIZE; x++)
         for (let y = 0; y < BOARD_SIZE; y++) setCell(g, x, y, fire());
       const s = makeState([specialPiece('a')], g);
+      expect(canUsePiece(s, s.hand[0]!)).toBe(false);
+    });
+
+    it('spring (2×2): только 1 пустая клетка → false', () => {
+      const g = createGrid();
+      for (let x = 0; x < BOARD_SIZE; x++)
+        for (let y = 0; y < BOARD_SIZE; y++) setCell(g, x, y, fire());
+      g[0]![0] = null;
+      const s = makeState([springPiece('a')], g);
       expect(canUsePiece(s, s.hand[0]!)).toBe(false);
     });
   });
@@ -88,7 +108,7 @@ describe('gameover', () => {
 
     it('спецфигура спасает когда обычные не помещаются', () => {
       const g = createGrid();
-      // Оставляем 1 пустую клетку, I3 не влезет, но Bomb подойдёт (только 1 клетка нужна)
+      // Оставляем 1 пустую клетку, I3 не влезет, но Пожар 1×1 подойдёт
       for (let x = 0; x < BOARD_SIZE; x++)
         for (let y = 0; y < BOARD_SIZE; y++) setCell(g, x, y, fire());
       // Сетим обратно null через прямой доступ

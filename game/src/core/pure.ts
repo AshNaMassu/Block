@@ -34,7 +34,7 @@ export function applyPureCleansing(
   comboSpecial: SpecialReward | null,
 ): PureResult {
   if (!cleansing.isPure) {
-    return { cleansing, special: comboSpecial ?? { type: 'bomb', count: 0 }, applied: false };
+    return { cleansing, special: comboSpecial ?? { type: 'fire', count: 0 }, applied: false };
   }
   const modified = applyPureToCleansing(cleansing);
   const special = upgradeSpecial(comboSpecial);

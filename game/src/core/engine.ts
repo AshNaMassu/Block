@@ -10,17 +10,19 @@
  * Порядок выдачи руки (критично, GDD 3.8): радужные и спецфигуры ДО нового Fury,
  * чтобы конвертация шла по старому множителю.
  *
- * Два публичных метода: placePiece (обычная/rainbow), useSpecial (спецфигура).
- * Возвращает PlacementResult для view (анимации/FX).
+ * Единый публичный метод placePiece — все виды фигур (normal/rainbow/special).
+ * Спецфигуры-детонаторы ставятся как обычные фигуры; после постановки детонируют
+ * (специальный pipeline): разрушение + след, +1 ⚡ стихии детонатора, БЕЗ комбо
+ * (защита от рекурсии, GDD 3.4). Возвращает PlacementResult для view (анимации/FX).
  */
-import { SCORE_SPECIAL_FILL_PER_CELL } from '../config/balance';
+import { SCORE_SPECIAL_DETONATION_PER_CELL } from '../config/balance';
 import { createGrid, setCell } from './grid';
 import { canPlaceShape, getShapeCells, spawnNormalBatch } from './shapes';
 import { scanSnapshot, applyClear } from './snapshot';
 import { addEnergy } from './energy';
 import { getComboReward } from './combo';
 import { applyPureCleansing } from './pure';
-import { getSpecialRegion, fillSpecialCells, canUseSpecial } from './specials';
+import { detonate, specialShape, SPECIAL_ELEMENT } from './specials';
 import {
   addRainbowPieces,
   addSpecialPieces,
@@ -112,34 +114,48 @@ export class GameEngine {
 
   /**
    * Проверить валидность постановки фигуры (для view preview).
+   * Спецфигуры ставятся по своей форме; ориентация важна для Прилива.
    */
-  canPlacePiece(pieceId: string, target: Vec2): boolean {
+  canPlacePiece(pieceId: string, target: Vec2, orientation: LineOrientation = 'row'): boolean {
     const piece = getPieceById(this.state.hand, pieceId);
     if (!piece) return false;
-    if (piece.kind === 'special') return false; // спецфигуры через useSpecial
-    return canPlaceShape(this.state.grid, piece.shape, target);
+    const shape = this.effectiveShape(piece, orientation);
+    if (!shape) return false;
+    return canPlaceShape(this.state.grid, shape, target);
   }
 
   /**
-   * Поставить обычную или радужную фигуру.
-   * Запускает полный pipeline: постановка → snapshot → 4 оси наград → очистка → рука → game over.
+   * Поставить фигуру (normal/rainbow/special — единый pipeline).
+   * Спецфигура после постановки детонирует: разрушение + след, +1 ⚡ стихии.
+   * Запускает полный pipeline: постановка → детонация → snapshot → 4 оси наград
+   * → очистка → рука → game over.
    */
-  placePiece(pieceId: string, target: Vec2): PlacementResult {
+  placePiece(pieceId: string, target: Vec2, orientation: LineOrientation = 'row'): PlacementResult {
     const now = this.now();
     const piece = getPieceById(this.state.hand, pieceId);
-    if (!piece || piece.kind === 'special') {
-      return this.failResult('piece_not_found_or_special');
-    }
-    if (!canPlaceShape(this.state.grid, piece.shape, target)) {
+    if (!piece) return this.failResult('piece_not_found');
+
+    const shape = this.effectiveShape(piece, orientation);
+    if (!shape || !canPlaceShape(this.state.grid, shape, target)) {
       return this.failResult('cannot_place');
     }
 
     // Сохраним множитель ДО любых изменений (для конвертации руки и линий хода)
     const multBefore = this.currentMult();
+    const isSpecial = piece.kind === 'special';
 
     // Шаг 1. Применить постановку к полю
-    const placedCells = this.applyPiece(piece, target);
+    const placedCells = this.applyPiece(piece, target, orientation);
     removePieceById(this.state.hand, pieceId);
+
+    // Шаг 1.5. Детонация спецфигуры (мутирует поле ДО скана линий —
+    // след может замкнуть линии, которые засчитаются в этом же ходе).
+    const detonation = isSpecial
+      ? detonate(this.state.grid, piece.special!, target, orientation)
+      : null;
+
+    // Энергия детонации: +1 ⚡ стихии детонатора (спецфигуры кормят Очищение).
+    const detonationEnergy: ElementId[] = detonation ? [detonation.element] : [];
 
     // Шаг 2. Снимок: найти все линии
     const scan = scanSnapshot(this.state.grid);
@@ -149,28 +165,44 @@ export class GameEngine {
     const lineScore = Math.round(scan.lineScore * multBefore);
     this.state.score += lineScore;
 
-    // Шаг 4. Ось Б — Комбо (только для normal/rainbow; source тут всегда не special)
-    const combo = getComboReward(elementalLines, true);
+    // Шаг 3.5. Очки за детонацию (по затронутым клеткам)
+    let detonationScore = 0;
+    if (detonation) {
+      detonationScore = Math.round(
+        (detonation.destroyed.length + detonation.seeded.length + detonation.repainted.length) *
+          SCORE_SPECIAL_DETONATION_PER_CELL *
+          multBefore,
+      );
+      this.state.score += detonationScore;
+    }
+
+    // Шаг 4. Ось Б — Комбо. За спецфигуру не выдаётся (защита от рекурсии, GDD 3.4):
+    // ни спецфигуры, ни бонусных очков.
+    const combo = isSpecial ? null : getComboReward(elementalLines, true);
     if (combo) {
       this.state.score += Math.round(combo.bonusScore * multBefore);
     }
 
-    // Шаг 5. Ось В — Энергия + Очищение
+    // Шаг 5. Ось В — Энергия + Очищение (детонация даёт энергию первой)
     let cleansing: CleansingReward | null = null;
-    if (scan.gainedElements.length > 0) {
-      const energyResult = addEnergy(this.state.energy.slots, scan.gainedElements);
+    const gainedElements = [...detonationEnergy, ...scan.gainedElements];
+    if (gainedElements.length > 0) {
+      const energyResult = addEnergy(this.state.energy.slots, gainedElements);
       this.state.energy.slots = energyResult.slots;
       cleansing = energyResult.cleansing;
     }
 
-    // Шаг 6. Ось Г — Чистое Очищение + апгрейд спецфигуры
+    // Шаг 6. Ось Г — Чистое Очищение + апгрейд спецфигуры.
+    // За постановку спецфигуры новая спецфигура не выдаётся даже при чистом
+    // Очищении (мы только что использовали спецфигуру) — применяются только
+    // множители.
     let comboSpecial: SpecialReward | null = combo?.special ?? null;
     let pure = false;
     if (cleansing) {
       const pureResult = applyPureCleansing(cleansing, comboSpecial);
       if (pureResult.applied) {
         cleansing = pureResult.cleansing;
-        comboSpecial = pureResult.special;
+        comboSpecial = isSpecial ? null : pureResult.special;
         pure = true;
       }
     }
@@ -243,131 +275,16 @@ export class GameEngine {
       combo,
       cleansing,
       pure,
-      specialFill: null,
+      detonation,
       scoreGained:
         lineScore +
-        (combo ? Math.round(combo.bonusScore * multBefore) : 0) +
+        detonationScore +
+        (combo && !isSpecial ? Math.round(combo.bonusScore * multBefore) : 0) +
         (cleansing ? Math.round(cleansing.baseScore * multBefore) : 0) +
         overflowConversionScore,
       starsGained,
       rainbowAdded,
       specialAdded,
-      furyStarted,
-      handRefilled: refilled,
-      gameOver,
-    };
-  }
-
-  /**
-   * Использовать спецфигуру (wildcard-fill).
-   * НЕ даёт комбо-спецфигур (защита от рекурсии, GDD 3.4).
-   * После заливки проверяет линии как обычная постановка.
-   */
-  useSpecial(pieceId: string, target: Vec2, orientation: LineOrientation = 'row'): PlacementResult {
-    const now = this.now();
-    const piece = getPieceById(this.state.hand, pieceId);
-    if (!piece || piece.kind !== 'special' || !piece.special) {
-      return this.failResult('piece_not_special');
-    }
-
-    const region = getSpecialRegion(piece.special, target, orientation);
-    if (!canUseSpecial(this.state.grid, region)) {
-      return this.failResult('no_empty_cells');
-    }
-
-    const multBefore = this.currentMult();
-
-    // Шаг 1. Wildcard-fill
-    const fillResult = fillSpecialCells(this.state.grid, region);
-    const fillScore = Math.round(fillResult.filled * SCORE_SPECIAL_FILL_PER_CELL * multBefore);
-    this.state.score += fillScore;
-    removePieceById(this.state.hand, pieceId);
-
-    // Шаг 2. Снимок линий после заливки
-    const scan = scanSnapshot(this.state.grid);
-    const elementalLines = scan.elementalLines.length;
-    const lineScore = Math.round(scan.lineScore * multBefore);
-    this.state.score += lineScore;
-
-    // Шаг 3. Комбо НЕ выдаётся (защита от рекурсии). Но bonusScore тоже не начисляем
-    // (комбо — это отдельная ось, источник спецфигур; тут источник — спецфигура).
-    // Однако энергия и Очищение срабатывают.
-    let cleansing: CleansingReward | null = null;
-    if (scan.gainedElements.length > 0) {
-      const energyResult = addEnergy(this.state.energy.slots, scan.gainedElements);
-      this.state.energy.slots = energyResult.slots;
-      cleansing = energyResult.cleansing;
-    }
-
-    // Чистое Очищение — но БЕЗ апгрейда спецфигуры (мы только что спецфигуру использовали,
-    // новая не выдаётся). Применяем только множители к cleansing.
-    let pure = false;
-    if (cleansing && cleansing.isPure) {
-      // Применяем ×2/×1.5/+1star через applyPureToCleansing логику (без апгрейда special)
-      const pureResult = applyPureCleansing(cleansing, null);
-      if (pureResult.applied) {
-        cleansing = pureResult.cleansing;
-        pure = true;
-      }
-    }
-
-    let starsGained = 0;
-    let rainbowAdded = 0;
-    let furyStarted = null;
-    let overflowConversionScore = 0;
-
-    if (cleansing) {
-      const cleansingScore = Math.round(cleansing.baseScore * multBefore);
-      this.state.score += cleansingScore;
-      starsGained += cleansing.stars;
-      this.state.stars += cleansing.stars;
-      overflowConversionScore += addRainbowPieces(
-        this.state.hand,
-        cleansing.rainbowCount,
-        multBefore,
-      );
-      rainbowAdded = cleansing.rainbowCount;
-    }
-
-    if (this.state.score > this.state.best) this.state.best = this.state.score;
-
-    // Fury (после конвертаций)
-    if (cleansing) {
-      furyStarted = startFury(cleansing.furySec, cleansing.furyMult, cleansing.element, now);
-      this.state.fury = furyStarted;
-    }
-
-    // Очистка
-    applyClear(this.state.grid, scan.cellsToClear);
-
-    // Refill
-    const refilled = this.refillNormal();
-    this.syncRngState();
-
-    const gameOver = !hasAnyMove(this.state);
-
-    return {
-      ok: true,
-      placedCells: fillResult.cells,
-      clearedLines: scan.lines,
-      elementalLines,
-      lineScore,
-      combo: null, // спецфигура не даёт комбо
-      cleansing,
-      pure,
-      specialFill: {
-        type: piece.special,
-        filledCells: fillResult.filled,
-        cells: fillResult.cells,
-      },
-      scoreGained:
-        fillScore +
-        lineScore +
-        (cleansing ? Math.round(cleansing.baseScore * multBefore) : 0) +
-        overflowConversionScore,
-      starsGained,
-      rainbowAdded,
-      specialAdded: null, // рекурсия запрещена
       furyStarted,
       handRefilled: refilled,
       gameOver,
@@ -386,10 +303,27 @@ export class GameEngine {
 
   // ─── Внутренние ────────────────────────────────────────────────────────
 
-  private applyPiece(piece: Piece, target: Vec2): Vec2[] {
-    const cells = getShapeCells(piece.shape, target);
+  /** Форма фигуры с учётом ориентации Прилива. null для неизвестной фигуры. */
+  private effectiveShape(piece: Piece, orientation: LineOrientation): Vec2[] | null {
+    if (piece.kind === 'special') {
+      if (!piece.special) return null;
+      return specialShape(piece.special, orientation);
+    }
+    return piece.kind === 'rainbow' ? [{ x: 0, y: 0 }] : piece.shape;
+  }
+
+  private applyPiece(piece: Piece, target: Vec2, orientation: LineOrientation): Vec2[] {
+    const cells =
+      piece.kind === 'special'
+        ? getShapeCells(specialShape(piece.special!, orientation), target)
+        : getShapeCells(piece.shape, target);
     for (const c of cells) {
-      const element: ElementId | -1 = piece.kind === 'rainbow' ? -1 : (piece.element ?? 0);
+      const element: ElementId | -1 =
+        piece.kind === 'special'
+          ? SPECIAL_ELEMENT[piece.special!]
+          : piece.kind === 'rainbow'
+            ? -1
+            : (piece.element ?? 0);
       const multi = piece.kind === 'rainbow';
       setCell(this.state.grid, c.x, c.y, { element, multi, special: false });
     }
@@ -407,7 +341,7 @@ export class GameEngine {
       combo: null,
       cleansing: null,
       pure: false,
-      specialFill: null,
+      detonation: null,
       scoreGained: 0,
       starsGained: 0,
       rainbowAdded: 0,

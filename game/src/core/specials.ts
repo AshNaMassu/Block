@@ -1,66 +1,108 @@
 /**
- * Спецфигуры: регионы и wildcard-fill (GDD-2 v1.3, секция 3.3).
+ * Спецфигуры-детонаторы: обычные фигуры в руке, которые при постановке детонируют.
  *
- * Спецфигура втекает в область — заполняет ПУСТЫЕ клетки как multi-special.
- * Занятые клетки не трогает (безопаснее, не ломает стихийные линии).
+ * Четыре стихии — четыре детонатора (редизайн GDD-2 v1.3 §3.3):
+ * - 🔥 Fire (Пожар) 1×1: выжигает область 3×3 вокруг клетки. Разрушенные клетки
+ *   очищаются, пустые заполняются огнём («взрыв со следом»).
+ * - 💧 Tide (Прилив) 1×2: смывает всю строку или столбец. Ориентация решается
+ *   самим перетаскиванием (горизонтально положил = строка, вертикально = столбец).
+ *   Пустые клетки линии заполняются водой (след).
+ * - 🌀 Vortex (Вихрь) 1×1: сметает со всего поля все клетки самой частой стихии
+ *   (детерминировано: при равенстве — меньший ElementId). Без следа — его «след»
+ *   это само освобождённое место.
+ * - 🌿 Spring (Родник) 2×2: перекрашивает область 4×4 вокруг себя в доминирующую
+ *   стихию области (пустые клетки тоже заполняются). Конструктивный сетап-инструмент.
  *
- * Регионы:
- * - 💣 Bomb: квадрат 2×2 от точки тапа, clamp к полю.
- * - ⚡ Line: строка ИЛИ столбец (по orientation).
- * - ✚ Cross: строка + столбец через target.
- * - ☄ Apocalypse: 2 строки + 2 столбца от target как upper-left 2×2, clamp.
- *
- * Использование валидно, если в области есть ≥1 пустая клетка (GDD 3.3).
+ * Детонация каждой спецфигуры даёт +1 ⚡ в шкалу своей стихии (engine).
  */
 import { BOARD_SIZE } from '../config/balance';
-import type { Cell, Grid, LineOrientation, SpecialType, Vec2 } from './types';
+import type {
+  Cell,
+  DetonationResult,
+  ElementId,
+  Grid,
+  LineOrientation,
+  SpecialType,
+  Vec2,
+} from './types';
 import { isInside } from './grid';
 
-/** Клетка спецфигуры (multi + special=true). */
-export function makeSpecialCell(): Cell {
-  return { element: -1, multi: true, special: true };
-}
+/** Стихия детонатора (его цвет и энергия от детонации). */
+export const SPECIAL_ELEMENT: Record<SpecialType, ElementId> = {
+  fire: 0,
+  tide: 1,
+  spring: 2,
+  vortex: 3,
+};
 
-/**
- * Получить регион спецфигуры по типу и точке тапа.
- * Для Line требует orientation. Возвращает ВСЕ клетки области (включая вне поля? нет — clamp).
- *
- * @param type тип спецфигуры
- * @param target точка тапа (для Bomb/Cross/Apocalypse — anchor; для Line — координата в линии)
- * @param orientation только для Line: 'row' | 'column'
- */
-export function getSpecialRegion(
-  type: SpecialType,
-  target: Vec2,
-  orientation?: LineOrientation,
-): Vec2[] {
+/** Форма спецфигуры в руке. Tide имеет две ориентации, остальные фиксированы. */
+export function specialShape(type: SpecialType, orientation: LineOrientation = 'row'): Vec2[] {
   switch (type) {
-    case 'bomb':
-      return bombRegion(target);
-    case 'line':
-      return lineRegion(target, orientation ?? 'row');
-    case 'cross':
-      return crossRegion(target);
-    case 'apocalypse':
-      return apocalypseRegion(target);
+    case 'fire':
+      return [{ x: 0, y: 0 }];
+    case 'tide':
+      return orientation === 'row'
+        ? [
+            { x: 0, y: 0 },
+            { x: 1, y: 0 },
+          ]
+        : [
+            { x: 0, y: 0 },
+            { x: 0, y: 1 },
+          ];
+    case 'vortex':
+      return [{ x: 0, y: 0 }];
+    case 'spring':
+      return [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 1, y: 1 },
+      ];
   }
 }
 
-/** Регион Bomb: 2×2 от target как upper-left, clamp к полю. */
-function bombRegion(target: Vec2): Vec2[] {
-  // Clamp upper-left так, чтобы 2×2 поместился в поле
-  const x0 = Math.min(target.x, BOARD_SIZE - 2);
-  const y0 = Math.min(target.y, BOARD_SIZE - 2);
+/** Клетка стихии детонатора (обычная клетка элемента; multi не нужен — детонирует сразу). */
+export function makeSpecialCell(type: SpecialType): Cell {
+  return { element: SPECIAL_ELEMENT[type], multi: false, special: false };
+}
+
+/**
+ * Область детонации по типу и точке постановки (upper-left клетки фигуры).
+ * Vortex не имеет фиксированной области — см. getVortexSweep.
+ */
+export function getDetonationRegion(
+  type: SpecialType,
+  target: Vec2,
+  orientation: LineOrientation = 'row',
+): Vec2[] {
+  switch (type) {
+    case 'fire':
+      return regionAround(target, 1);
+    case 'tide':
+      return lineRegion(target, orientation);
+    case 'vortex':
+      return [];
+    case 'spring':
+      // 4×4 вокруг 2×2 фигуры: центр фигуры = target..target+1, область = ±1.
+      return regionAround({ x: target.x, y: target.y }, 1, 4);
+  }
+}
+
+/** Квадрат размера size×size с центром на target (radius = (size-1)/2), clamp к полю. */
+function regionAround(center: Vec2, radius: number, size = 3): Vec2[] {
   const cells: Vec2[] = [];
-  for (let dy = 0; dy < 2; dy++) {
-    for (let dx = 0; dx < 2; dx++) {
-      cells.push({ x: x0 + dx, y: y0 + dy });
+  const x0 = center.x - radius;
+  const y0 = center.y - radius;
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < size; dx++) {
+      if (isInside(x0 + dx, y0 + dy)) cells.push({ x: x0 + dx, y: y0 + dy });
     }
   }
   return cells;
 }
 
-/** Регион Line: вся строка или весь столбец через target. */
+/** Регион Tide: вся строка (row) или столбец (column) через target. */
 function lineRegion(target: Vec2, orientation: LineOrientation): Vec2[] {
   const cells: Vec2[] = [];
   if (orientation === 'row') {
@@ -71,75 +113,136 @@ function lineRegion(target: Vec2, orientation: LineOrientation): Vec2[] {
   return cells;
 }
 
-/** Регион Cross: строка + столбец через target (15 уникальных клеток). */
-function crossRegion(target: Vec2): Vec2[] {
-  const seen = new Set<number>();
-  const cells: Vec2[] = [];
-  const push = (x: number, y: number) => {
-    const k = y * BOARD_SIZE + x;
-    if (!seen.has(k)) {
-      seen.add(k);
-      cells.push({ x, y });
-    }
-  };
-  for (let x = 0; x < BOARD_SIZE; x++) push(x, target.y);
-  for (let y = 0; y < BOARD_SIZE; y++) push(target.x, y);
-  return cells;
-}
-
-/** Регион Apocalypse: 2 строки + 2 столбца от target как upper-left 2×2, clamp. */
-function apocalypseRegion(target: Vec2): Vec2[] {
-  const x0 = Math.min(target.x, BOARD_SIZE - 2);
-  const y0 = Math.min(target.y, BOARD_SIZE - 2);
-  const rows = [y0, y0 + 1];
-  const cols = [x0, x0 + 1];
-  const seen = new Set<number>();
-  const cells: Vec2[] = [];
-  const push = (x: number, y: number) => {
-    const k = y * BOARD_SIZE + x;
-    if (!seen.has(k)) {
-      seen.add(k);
-      cells.push({ x, y });
-    }
-  };
-  for (const r of rows) for (let x = 0; x < BOARD_SIZE; x++) push(x, r);
-  for (const c of cols) for (let y = 0; y < BOARD_SIZE; y++) push(c, y);
-  return cells;
-}
-
-/** Найти пустые клетки в области. */
-export function getEmptyCellsInRegion(grid: Grid, region: Vec2[]): Vec2[] {
-  return region.filter((c) => isInside(c.x, c.y) && grid[c.y]![c.x] === null);
-}
-
 /**
- * Заполнить пустые клетки области как special-multi.
- * Мутирует grid. Возвращает число заполненных и их координаты.
- *
- * НЕ заполняет занятые клетки.
+ * Доминирующая стихия среди занятых не-multi клеток в списке.
+ * При равенстве — меньший ElementId. Если клеток нет → fallback (или null).
  */
-export function fillSpecialCells(
+export function dominantElement(
   grid: Grid,
-  region: Vec2[],
-): {
-  filled: number;
-  cells: Vec2[];
-} {
-  const filledCells: Vec2[] = [];
-  const cell = makeSpecialCell();
-  for (const c of region) {
-    if (isInside(c.x, c.y) && grid[c.y]![c.x] === null) {
-      grid[c.y]![c.x] = { ...cell };
-      filledCells.push(c);
+  cells: Vec2[],
+  fallback: ElementId | null = null,
+): ElementId | null {
+  const counts = [0, 0, 0, 0];
+  let any = false;
+  for (const c of cells) {
+    if (!isInside(c.x, c.y)) continue;
+    const cell = grid[c.y]![c.x];
+    if (cell && !cell.multi) {
+      counts[cell.element]++;
+      any = true;
     }
   }
-  return { filled: filledCells.length, cells: filledCells };
+  if (!any) return fallback;
+  let best = 0;
+  for (let e = 1; e < counts.length; e++) {
+    if (counts[e]! > counts[best]!) best = e;
+  }
+  return best as ElementId;
 }
 
 /**
- * Валидна ли постановка спецфигуры: в области есть ≥1 пустая клетка.
- * GDD 3.3: если пустых нет — использование отменяется.
+ * Вихрь: самая частая стихия на поле (не-multi клетки).
+ * При равенстве — меньший ElementId. Пустое поле → null.
  */
-export function canUseSpecial(grid: Grid, region: Vec2[]): boolean {
-  return getEmptyCellsInRegion(grid, region).length > 0;
+export function getVortexSweep(grid: Grid): { element: ElementId; cells: Vec2[] } | null {
+  const element = dominantElement(grid, allCells(), null);
+  if (element === null) return null;
+  const cells = allCells().filter((c) => {
+    const cell = grid[c.y]![c.x];
+    return cell !== null && !cell.multi && cell.element === element;
+  });
+  return { element, cells };
+}
+
+function allCells(): Vec2[] {
+  const cells: Vec2[] = [];
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    for (let x = 0; x < BOARD_SIZE; x++) cells.push({ x, y });
+  }
+  return cells;
+}
+
+/**
+ * Детонировать спецфигуру в точке постановки. Мутирует grid.
+ * Вызывается engine ПОСЛЕ постановки клетки фигуры и ДО скана линий.
+ *
+ * Паттерн «взрыв со следом» (fire/tide): сначала clear занятых клеток области,
+ * затем пустые (изначально пустые) клетки заполняются стихией детонатора.
+ */
+export function detonate(
+  grid: Grid,
+  type: SpecialType,
+  target: Vec2,
+  orientation: LineOrientation = 'row',
+): DetonationResult {
+  const element = SPECIAL_ELEMENT[type];
+
+  if (type === 'vortex') {
+    const sweep = getVortexSweep(grid);
+    if (!sweep) {
+      return {
+        type,
+        element,
+        region: [],
+        destroyed: [],
+        seeded: [],
+        repainted: [],
+        sweptElement: null,
+      };
+    }
+    clearCellsAt(grid, sweep.cells);
+    return {
+      type,
+      element,
+      region: sweep.cells,
+      destroyed: sweep.cells,
+      seeded: [],
+      repainted: [],
+      sweptElement: sweep.element,
+    };
+  }
+
+  const region = getDetonationRegion(type, target, orientation);
+  const destroyed: Vec2[] = [];
+  const seeded: Vec2[] = [];
+  const repainted: Vec2[] = [];
+
+  if (type === 'spring') {
+    // Родник: перекрасить ВСЮ область в доминирующую стихию области,
+    // пустые клетки заполнить. Разрушений нет.
+    const dominant = dominantElement(grid, region, element) ?? element;
+    for (const c of region) {
+      const cell = grid[c.y]![c.x];
+      if (cell === null) {
+        grid[c.y]![c.x] = { element: dominant, multi: false, special: false };
+        seeded.push(c);
+      } else if (!cell.multi && cell.element !== dominant) {
+        grid[c.y]![c.x] = { element: dominant, multi: false, special: false };
+        repainted.push(c);
+      } else if (cell.multi) {
+        grid[c.y]![c.x] = { element: dominant, multi: false, special: false };
+        repainted.push(c);
+      }
+    }
+    return { type, element, region, destroyed, seeded, repainted, sweptElement: null };
+  }
+
+  // Fire/Tide: разрушить занятые, пустые заполнить следом стихии.
+  for (const c of region) {
+    if (grid[c.y]![c.x] !== null) destroyed.push(c);
+  }
+  clearCellsAt(grid, destroyed);
+  for (const c of region) {
+    if (grid[c.y]![c.x] === null) {
+      grid[c.y]![c.x] = makeSpecialCell(type);
+      seeded.push(c);
+    }
+  }
+  return { type, element, region, destroyed, seeded, repainted, sweptElement: null };
+}
+
+function clearCellsAt(grid: Grid, cells: Vec2[]): void {
+  for (const { x, y } of cells) {
+    if (isInside(x, y)) grid[y]![x] = null;
+  }
 }

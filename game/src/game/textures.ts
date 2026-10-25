@@ -29,11 +29,6 @@ export const TEX_PREVIEW_BAD = `${TEX_PREFIX}-preview-bad`;
 /** Ключ текстуры радужной фигуры/клетки. */
 export const TEX_RAINBOW = `${TEX_PREFIX}-rainbow`;
 
-/** Ключ текстуры спецфигуры по типу (bomb/line/cross/apocalypse). */
-export function specialTextureKey(type: string): string {
-  return `${TEX_PREFIX}-special-${type}`;
-}
-
 /** FX-текстуры для line clear (Milestone 3). */
 export const TEX_FX_GLOW = `${TEX_PREFIX}-fx-glow`;
 export const TEX_FX_BEAM = `${TEX_PREFIX}-fx-beam`;

@@ -7,8 +7,12 @@
 /** Стихия: 🔥 огонь / 💧 вода / 🌿 земля / 💨 воздух. */
 export type ElementId = 0 | 1 | 2 | 3;
 
-/** Спецфигура: 💣 Бомба / ⚡ Линия / ✚ Крест / ☄ Апокалипсис. Эскалация по мощности. */
-export type SpecialType = 'bomb' | 'line' | 'cross' | 'apocalypse';
+/**
+ * Спецфигура-детонатор: 🔥 Пожар / 💧 Прилив / 🌀 Вихрь / 🌿 Родник.
+ * Одинаковые с обычными фигурами: ставятся перетаскиванием, при постановке детонируют.
+ * Эскалация по мощности: fire → tide → vortex → spring.
+ */
+export type SpecialType = 'fire' | 'tide' | 'vortex' | 'spring';
 
 /** Тип фигуры в руке. */
 export type PieceKind = 'normal' | 'rainbow' | 'special';
@@ -63,11 +67,11 @@ export interface Piece {
   kind: PieceKind;
   /** Для normal/rainbow — клетки формы. У special фигуры форма не определена. */
   shape: Vec2[];
-  /** Для normal — стихия. У rainbow/special — undefined. */
+  /** Для normal/special — стихия. У rainbow — undefined. */
   element?: ElementId;
-  /** Для special — тип спецфигуры. */
+  /** Для special — тип спецфигуры-детонатора. */
   special?: SpecialType;
-  /** Для special Line — выбранная ориентация. */
+  /** Для special Tide — ориентация постановки (1×2 → строка, 2×1 → столбец). */
   orientation?: LineOrientation;
 }
 
@@ -143,13 +147,25 @@ export interface ComboReward {
   special: SpecialReward | null;
 }
 
-/** Результат wildcard-fill спецфигуры. */
-export interface SpecialFillResult {
+/**
+ * Результат детонации спецфигуры при постановке.
+ * Детонация мутирует grid ДО скана линий — «след» (seeded/repainted) может
+ * замкнуть линии, которые засчитаются в том же ходе.
+ */
+export interface DetonationResult {
   type: SpecialType;
-  /** Сколько пустых клеток заполнилось. */
-  filledCells: number;
-  /** Координаты заполненных клеток. */
-  cells: Vec2[];
+  /** Стихия детонатора (и его следа). */
+  element: ElementId;
+  /** Все клетки области детонации (для FX). */
+  region: Vec2[];
+  /** Разрушенные клетки (были заняты → очищены). */
+  destroyed: Vec2[];
+  /** Клетки следа: были пустыми → заполнены стихией детонатора. */
+  seeded: Vec2[];
+  /** Перекрашенные клетки (Родник: занятые, сменившие стихию). */
+  repainted: Vec2[];
+  /** Сметённая стихия (Вихрь), null для остальных. */
+  sweptElement: ElementId | null;
 }
 
 /**
@@ -174,8 +190,8 @@ export interface PlacementResult {
   cleansing: CleansingReward | null;
   /** Сработало ли Чистое Очищение (Ось Г). */
   pure: boolean;
-  /** Заполнение спецфигурой, null если это не спецфигура. */
-  specialFill: SpecialFillResult | null;
+  /** Детонация спецфигуры, null если это не спецфигура. */
+  detonation: DetonationResult | null;
   /** Итоговые очки за ход (все оси + конвертации). */
   scoreGained: number;
   /** Звёзды за ход. */

@@ -33,14 +33,13 @@ export function getComboReward(
 }
 
 /**
- * Апгрейд спецфигуры на ступень выше (для Чистого Очищения, GDD 4.4).
- * Порядок: bomb → line → cross → apocalypse.
+ * Апгрейд спецфигуры на ступень выше (для Чистого Очищения).
+ * Порядок: fire → tide → vortex → spring.
  *
- * Особый кейс: apocalypse ×2 считается максимумом, апгрейд игнорируется
- * (в рамках текущего типа).
+ * Особый кейс: spring ×2 считается максимумом, апгрейд игнорируется.
  *
  * @param current текущая спецфигура или null
- * @returns апгрейднутая спецфигура. Если current null → {bomb, 1}
+ * @returns апгрейднутая спецфигура. Если current null → {fire, 1}
  */
 export function upgradeSpecial(
   current: {
@@ -48,18 +47,18 @@ export function upgradeSpecial(
     count: number;
   } | null,
 ): { type: SpecialType; count: number } {
-  // Если спецфигуры не было → Чистое даёт Bomb ×1 (GDD 4.4)
-  if (!current) return { type: 'bomb', count: 1 };
+  // Если спецфигуры не было → Чистое даёт Fire ×1
+  if (!current) return { type: 'fire', count: 1 };
 
-  // На максимальном Apocalypse ×2 апгрейд игнорируется
-  if (current.type === 'apocalypse' && current.count >= 2) {
+  // На максимальном Spring ×2 апгрейд игнорируется
+  if (current.type === 'spring' && current.count >= 2) {
     return current;
   }
 
   const idx = SPECIAL_ESCALATION.indexOf(current.type);
-  // На apocalypse ×1 → apocalypse ×2 (растёт count, а не ступень)
-  if (current.type === 'apocalypse' && current.count === 1) {
-    return { type: 'apocalypse', count: 2 };
+  // На spring ×1 → spring ×2 (растёт count, а не ступень)
+  if (current.type === 'spring' && current.count === 1) {
+    return { type: 'spring', count: 2 };
   }
   // Иначе — следующая ступень, count = 1
   const nextType = SPECIAL_ESCALATION[Math.min(idx + 1, SPECIAL_ESCALATION.length - 1)]!;

@@ -25,31 +25,31 @@ describe('combo', () => {
     it('1 line → null', () => {
       expect(getComboReward(1, true)).toBeNull();
     });
-    it('2 lines → Bomb x1, +2000', () => {
+    it('2 lines → Fire x1, +2000', () => {
       const r = getComboReward(2, true);
       expect(r).not.toBeNull();
       expect(r!.lines).toBe(2);
       expect(r!.bonusScore).toBe(2000);
-      expect(r!.special).toEqual({ type: 'bomb', count: 1 });
+      expect(r!.special).toEqual({ type: 'fire', count: 1 });
     });
-    it('3 lines → Line x1, +6000', () => {
+    it('3 lines → Tide x1, +6000', () => {
       const r = getComboReward(3, true);
-      expect(r!.special).toEqual({ type: 'line', count: 1 });
+      expect(r!.special).toEqual({ type: 'tide', count: 1 });
       expect(r!.bonusScore).toBe(6000);
     });
-    it('4 lines → Cross x1, +12000', () => {
+    it('4 lines → Vortex x1, +12000', () => {
       const r = getComboReward(4, true);
-      expect(r!.special).toEqual({ type: 'cross', count: 1 });
+      expect(r!.special).toEqual({ type: 'vortex', count: 1 });
       expect(r!.bonusScore).toBe(12000);
     });
-    it('5 lines → Apocalypse x1, +20000', () => {
+    it('5 lines → Spring x1, +20000', () => {
       const r = getComboReward(5, true);
-      expect(r!.special).toEqual({ type: 'apocalypse', count: 1 });
+      expect(r!.special).toEqual({ type: 'spring', count: 1 });
       expect(r!.bonusScore).toBe(20000);
     });
-    it('6 lines → Apocalypse x2, +30000', () => {
+    it('6 lines → Spring x2, +30000', () => {
       const r = getComboReward(6, true);
-      expect(r!.special).toEqual({ type: 'apocalypse', count: 2 });
+      expect(r!.special).toEqual({ type: 'spring', count: 2 });
       expect(r!.bonusScore).toBe(30000);
     });
     it('>6 lines → null (за пределами таблицы)', () => {
@@ -71,30 +71,30 @@ describe('combo', () => {
   });
 
   describe('upgradeSpecial', () => {
-    it('null → Bomb x1 (Pure без комбо)', () => {
-      expect(upgradeSpecial(null)).toEqual({ type: 'bomb', count: 1 });
+    it('null → Fire x1 (Pure без комбо)', () => {
+      expect(upgradeSpecial(null)).toEqual({ type: 'fire', count: 1 });
     });
-    it('bomb → line', () => {
-      expect(upgradeSpecial({ type: 'bomb', count: 1 })).toEqual({ type: 'line', count: 1 });
+    it('fire → tide', () => {
+      expect(upgradeSpecial({ type: 'fire', count: 1 })).toEqual({ type: 'tide', count: 1 });
     });
-    it('line → cross', () => {
-      expect(upgradeSpecial({ type: 'line', count: 1 })).toEqual({ type: 'cross', count: 1 });
+    it('tide → vortex', () => {
+      expect(upgradeSpecial({ type: 'tide', count: 1 })).toEqual({ type: 'vortex', count: 1 });
     });
-    it('cross → apocalypse x1', () => {
-      expect(upgradeSpecial({ type: 'cross', count: 1 })).toEqual({
-        type: 'apocalypse',
+    it('vortex → spring x1', () => {
+      expect(upgradeSpecial({ type: 'vortex', count: 1 })).toEqual({
+        type: 'spring',
         count: 1,
       });
     });
-    it('apocalypse x1 → apocalypse x2', () => {
-      expect(upgradeSpecial({ type: 'apocalypse', count: 1 })).toEqual({
-        type: 'apocalypse',
+    it('spring x1 → spring x2', () => {
+      expect(upgradeSpecial({ type: 'spring', count: 1 })).toEqual({
+        type: 'spring',
         count: 2,
       });
     });
-    it('apocalypse x2 → без изменений (максимум)', () => {
-      expect(upgradeSpecial({ type: 'apocalypse', count: 2 })).toEqual({
-        type: 'apocalypse',
+    it('spring x2 → без изменений (максимум)', () => {
+      expect(upgradeSpecial({ type: 'spring', count: 2 })).toEqual({
+        type: 'spring',
         count: 2,
       });
     });
@@ -107,36 +107,36 @@ function makeCleansingForPure(over: Partial<CleansingReward> = {}): CleansingRew
 }
 
 describe('pure', () => {
-  const bomb: SpecialReward = { type: 'bomb', count: 1 };
+  const fire: SpecialReward = { type: 'fire', count: 1 };
 
   it('не pure → не меняется, special как есть', () => {
     const c = makeCleansingForPure({ isPure: false });
-    const r = applyPureCleansing(c, bomb);
+    const r = applyPureCleansing(c, fire);
     expect(r.applied).toBe(false);
     expect(r.cleansing.baseScore).toBe(6000);
-    expect(r.special).toEqual(bomb);
+    expect(r.special).toEqual(fire);
   });
 
-  it('pure без комбо-спецфигуры → Bomb x1', () => {
+  it('pure без комбо-спецфигуры → Fire x1', () => {
     const c = makeCleansingForPure({ isPure: true });
     const r = applyPureCleansing(c, null);
     expect(r.applied).toBe(true);
-    expect(r.special).toEqual({ type: 'bomb', count: 1 });
+    expect(r.special).toEqual({ type: 'fire', count: 1 });
   });
 
-  it('pure с bomb → line, очки x2, fury x1.5, +1 star', () => {
+  it('pure с fire → tide, очки x2, fury x1.5, +1 star', () => {
     const c = makeCleansingForPure({ isPure: true, baseScore: 9000, furySec: 40, stars: 2 });
-    const r = applyPureCleansing(c, bomb);
+    const r = applyPureCleansing(c, fire);
     expect(r.applied).toBe(true);
-    expect(r.special).toEqual({ type: 'line', count: 1 });
+    expect(r.special).toEqual({ type: 'tide', count: 1 });
     expect(r.cleansing.baseScore).toBe(18000);
     expect(r.cleansing.furySec).toBe(60);
     expect(r.cleansing.stars).toBe(3);
   });
 
-  it('pure с apocalypse x1 → apocalypse x2', () => {
+  it('pure с spring x1 → spring x2', () => {
     const c = makeCleansingForPure({ isPure: true });
-    const r = applyPureCleansing(c, { type: 'apocalypse', count: 1 });
-    expect(r.special).toEqual({ type: 'apocalypse', count: 2 });
+    const r = applyPureCleansing(c, { type: 'spring', count: 1 });
+    expect(r.special).toEqual({ type: 'spring', count: 2 });
   });
 });

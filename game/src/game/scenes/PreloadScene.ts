@@ -24,7 +24,6 @@ import {
   TEX_PREVIEW_OK,
   TEX_RAINBOW,
   cellTextureKey,
-  specialTextureKey,
 } from '../textures';
 import { CELL_RADIUS } from '../layout';
 import { COLOR_BG } from '../../config/elements';
@@ -65,24 +64,8 @@ export class PreloadScene extends Phaser.Scene {
     // Радужная (белая база + золотой контур, 4-секторный упрощён).
     this.makeRainbowTexture();
 
-    // Спецфигуры: тёмный фон + золотая рамка. Символы (💣⚡✚☄) рисуем в PieceView.
-    this.makeSpecialTexture('bomb');
-    this.makeSpecialTexture('line');
-    this.makeSpecialTexture('cross');
-    this.makeSpecialTexture('apocalypse');
-  }
-
-  /** Текстура спецфигуры: тёмный фон + золотая рамка (символ поверх — в PieceView). */
-  private makeSpecialTexture(type: string): void {
-    const key = specialTextureKey(type);
-    if (this.textures.exists(key)) return;
-    const g = this.add.graphics();
-    g.fillStyle(0x3a3852, 1);
-    g.fillRoundedRect(0, 0, TEX_CELL_SIZE, TEX_CELL_SIZE, CELL_RADIUS);
-    g.lineStyle(3, COLOR_GOLD, 0.8);
-    g.strokeRoundedRect(2, 2, TEX_CELL_SIZE - 4, TEX_CELL_SIZE - 4, CELL_RADIUS);
-    g.generateTexture(key, TEX_CELL_SIZE, TEX_CELL_SIZE);
-    g.destroy();
+    // Спецфигуры-детонаторы рисуются из клеток стихий + символ (PieceView) —
+    // отдельных текстур не требуется.
   }
 
   private makeCellTexture(key: string, color: number, alpha = 1): void {

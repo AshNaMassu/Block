@@ -2,18 +2,19 @@
  * GameScene — главная сцена игры (T-032..T-037).
  *
  * Владеет GameEngine (core). Создаёт BoardView, HandView, HudView, EnergyView,
- * FuryView, DragController, SpecialInputController. Маршрутизирует ввод:
- * pointerdown сначала идёт в SpecialInputController (если тап по спецфигуре или
- * спец-режим активен), иначе — в DragController.
+ * FuryView, DragController. Ввод единый: все фигуры (обычные, радужные,
+ * спецфигуры-детонаторы) перетаскиваются; тап по двум одинаковым спецфигурам
+ * мержит их в следующую ступень (гибрид B).
  *
- * Цикл: ход → engine.placePiece/useSpecial → PlacementResult → перерисов.
- * Game over → in-scene оверлей (Restart/Menu). Rewarded-continue — T-046 (M3).
+ * Цикл: ход → engine.placePiece → PlacementResult → детонация (если спецфигура)
+ * → FX линий → FX очищения → перерисов → тосты → game over.
  *
  * Не считает сама линии/очки — всё через engine. Phaser — только view/input.
  */
 import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
+import { SPECIAL_ELEMENT } from '../../core/specials';
 import type { Cell, GameState, Piece, PlacementResult, SpecialType, Vec2 } from '../../core/types';
 import {
   COLOR_BG,
@@ -22,6 +23,7 @@ import {
   COLOR_TEXT,
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
+  ELEMENT_NAMES,
 } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH, BACK_BUTTON_X, BACK_BUTTON_Y } from '../layout';
 import { BoardView } from '../objects/BoardView';
@@ -35,10 +37,28 @@ import { REG_META } from './MenuScene';
 import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/storage';
 import { LineClearFx } from '../fx/LineClearFx';
 import { CleansingFx } from '../fx/CleansingFx';
+import { DetonationFx } from '../fx/DetonationFx';
 import { ToastManager, type ToastData } from '../ui/Toast';
+import type { MergeResult } from '../../core/hand';
 
 /** Частота тика Fury (мс) — для истечения таймера по timestamp. */
 const FURY_TICK_MS = 200;
+
+/** Лейблы детонаторов (тосты/рука). */
+const SPECIAL_LABELS: Record<SpecialType, string> = {
+  fire: '🔥 Пожар',
+  tide: '💧 Прилив',
+  vortex: '🌀 Вихрь',
+  spring: '🌿 Родник',
+};
+
+/** Заголовки тостов детонаций. */
+const DETONATION_TITLES: Record<SpecialType, string> = {
+  fire: 'ПОЖАР!',
+  tide: 'ПРИЛИВ!',
+  vortex: 'ВИХРЬ!',
+  spring: 'РОДНИК!',
+};
 
 export class GameScene extends Phaser.Scene {
   private engine!: GameEngine;
@@ -52,6 +72,7 @@ export class GameScene extends Phaser.Scene {
   private meta!: PlayerMeta;
   private lineClearFx!: LineClearFx;
   private cleansingFx!: CleansingFx;
+  private detonationFx!: DetonationFx;
   private toasts!: ToastManager;
 
   constructor() {
@@ -76,6 +97,7 @@ export class GameScene extends Phaser.Scene {
     // FX и UI.
     this.lineClearFx = new LineClearFx(this, this.boardView);
     this.cleansingFx = new CleansingFx(this);
+    this.detonationFx = new DetonationFx(this, this.boardView);
     this.toasts = new ToastManager(this);
 
     // Кнопка «назад в меню».
@@ -92,7 +114,7 @@ export class GameScene extends Phaser.Scene {
       boardView: this.boardView,
       handView: this.handView,
       onPlaced: (result, piece) => this.afterMove(result, piece),
-      onUsed: (result, piece) => this.afterMove(result, piece),
+      onMerged: (result) => this.afterMerge(result),
     });
 
     // Единый обработчик pointerdown: спец-режим имеет приоритет.
@@ -116,17 +138,25 @@ export class GameScene extends Phaser.Scene {
     this.refresh();
   }
 
-  /**
-   * Маршрутизатор pointerdown.
-   * 1. Если спец-режим активен — тап по полю меняет target, тап по другой
-   *    спецфигуре переключает выбор. (тап по обычной фигуре во время спец-режима
-   *    игнорируем — пусть сначала отменит.)
-   * 2. Иначе если тап по спецфигуре — запускаем спец-режим.
-   * 3. Иначе — отдаём DragController (обычная/rainbow фигура).
-   */
   /** Единый обработчик pointerdown: все фигуры (включая спец) идут через drag. */
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
     this.drag.tryStartDrag(pointer);
+  }
+
+  /** Мердж двух спецфигур в руке: перерисов руки + тост. */
+  private afterMerge(result: MergeResult): void {
+    this.refreshHand();
+    if (!result.ok || !result.piece) return;
+    const label =
+      result.piece.kind === 'special' ? this.specialLabel(result.piece.special!) : '🌈 Радужная';
+    this.toasts.showAll([
+      {
+        title: 'МЕРДЖ!',
+        subtitle: label,
+        accent: COLOR_GOLD,
+        big: false,
+      },
+    ]);
   }
 
   /** После успешного хода: анимации → перерисов → тосты → game over. */
@@ -153,14 +183,26 @@ export class GameScene extends Phaser.Scene {
 
     this.showPlacedCells(result.placedCells, piece);
 
-    this.lineClearFx.play(result.clearedLines, () => {
-      this.refreshBoard();
+    // Детонация спецфигуры: вспышки разрушения/следа, затем линии/очищение.
+    const startLineClear = () => {
+      this.lineClearFx.play(result.clearedLines, () => {
+        this.refreshBoard();
 
-      const cleansing = result.cleansing;
+        const cleansing = result.cleansing;
 
-      if (cleansing) {
-        // Очищение: вспышка + кольца, затем энергия/радужные/Fury и тосты.
-        this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
+        if (cleansing) {
+          // Очищение: вспышка + кольца, затем энергия/радужные/Fury и тосты.
+          this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
+            this.refreshEnergy();
+            this.unlockInput();
+
+            if (!result.gameOver) {
+              this.toasts.showAll(this.buildToasts(result));
+            }
+
+            this.checkGameOver(result);
+          });
+        } else {
           this.refreshEnergy();
           this.unlockInput();
 
@@ -169,18 +211,18 @@ export class GameScene extends Phaser.Scene {
           }
 
           this.checkGameOver(result);
-        });
-      } else {
-        this.refreshEnergy();
-        this.unlockInput();
-
-        if (!result.gameOver) {
-          this.toasts.showAll(this.buildToasts(result));
         }
+      });
+    };
 
-        this.checkGameOver(result);
-      }
-    });
+    if (result.detonation) {
+      this.detonationFx.play(result.detonation, () => {
+        this.refreshBoard();
+        startLineClear();
+      });
+    } else {
+      startLineClear();
+    }
   }
 
   /** Game over по результату хода или по отсутствию ходов. */
@@ -201,7 +243,8 @@ export class GameScene extends Phaser.Scene {
   /** Как выглядит клетка поставленной фигуры (для отрисовки до очистки). */
   private cellFromPiece(piece: Piece): Cell {
     if (piece.kind === 'special') {
-      return { element: -1, multi: true, special: true };
+      // Детонатор кладётся как обычная клетка своей стихии (детонация сразу).
+      return { element: SPECIAL_ELEMENT[piece.special ?? 'fire'], multi: false, special: false };
     }
     if (piece.kind === 'rainbow') {
       return { element: -1, multi: true, special: false };
@@ -237,6 +280,22 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
+    // Детонация спецфигуры — заметный тост (разрушение/след в цифрах).
+    if (result.detonation) {
+      const d = result.detonation;
+      const parts: string[] = [];
+      if (d.destroyed.length > 0) parts.push(`−${d.destroyed.length} клеток`);
+      if (d.seeded.length > 0)
+        parts.push(`+${d.seeded.length} ${ELEMENT_NAMES[d.element]!.toLowerCase()}`);
+      if (d.repainted.length > 0) parts.push(`~${d.repainted.length} перекрашено`);
+      toasts.push({
+        title: DETONATION_TITLES[d.type],
+        subtitle: `+${this.fmt(result.scoreGained)}${parts.length > 0 ? ` · ${parts.join(' · ')}` : ''}`,
+        accent: ELEMENT_COLORS[d.element]!,
+        big: true,
+      });
+    }
+
     // Мелкий тост за обычные ходы с очками.
     if (toasts.length === 0 && result.scoreGained > 0) {
       const firstElemental = result.clearedLines.find((l) => l.isElemental);
@@ -261,20 +320,9 @@ export class GameScene extends Phaser.Scene {
     return toasts;
   }
 
-  /** Человекочитаемое имя спецфигуры для тостов. */
+  /** Человекочитаемое имя детонатора для тостов. */
   private specialLabel(type: SpecialType): string {
-    switch (type) {
-      case 'bomb':
-        return '💣 Bomb';
-      case 'line':
-        return '⚡ Line';
-      case 'cross':
-        return '✚ Cross';
-      case 'apocalypse':
-        return '☄ Apocalypse';
-      default:
-        return type;
-    }
+    return SPECIAL_LABELS[type];
   }
 
   /** Блокировка ввода на время анимаций. */

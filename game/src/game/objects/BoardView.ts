@@ -62,26 +62,6 @@ export class BoardView extends Phaser.GameObjects.Container {
     }
   }
 
-  /**
-   * Подсветить регион спецфигуры (T-036).
-   * `emptyCells` — клетки, которые будут заполнены (зелёным), остальные — затемнённые.
-   */
-  showSpecialRegion(region: Vec2[], emptyCells: Vec2[]): void {
-    this.clearPreview();
-    const emptySet = new Set(emptyCells.map((c) => c.y * BOARD_SIZE + c.x));
-    for (const c of region) {
-      if (c.x < 0 || c.x >= BOARD_SIZE || c.y < 0 || c.y >= BOARD_SIZE) continue;
-      const px = BOARD_X + c.x * CELL_SIZE + CELL_SIZE / 2;
-      const py = BOARD_TOP + c.y * CELL_SIZE + CELL_SIZE / 2;
-      const isEmpty = emptySet.has(c.y * BOARD_SIZE + c.x);
-      const img = this.scene.add
-        .image(px, py, isEmpty ? TEX_PREVIEW_OK : TEX_PREVIEW_BAD)
-        .setAlpha(isEmpty ? 0.55 : 0.25);
-      this.overlayLayer.add(img);
-      this.previewImages.push(img);
-    }
-  }
-
   /** Снять подсветку preview. */
   clearPreview(): void {
     for (const img of this.previewImages) img.destroy();
