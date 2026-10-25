@@ -20,7 +20,6 @@ export { HudView } from './objects/HudView';
 export { EnergyView } from './objects/EnergyView';
 export { FuryView } from './objects/FuryView';
 export { DragController } from './input/DragController';
-export { SpecialInputController } from './input/SpecialInputController';
 export { Button } from './ui/Button';
 export { BootScene } from './scenes/BootScene';
 export { PreloadScene } from './scenes/PreloadScene';

@@ -1,29 +1,26 @@
 /**
- * DragController — перетаскивание обычной и радужной фигуры (T-034/T-035).
+ * DragController — единый drag & drop для всех фигур (T-034/T-035 + спецфигуры).
  *
- * GDD §14: кастомный контроллер со смещением фигуры вверх от пальца (чтобы
- * палец не закрывал цель), preview валидности, обработкой pointercancel.
+ * Обычные/радужные: перетаскивание с preview формы (engine.canPlacePiece),
+ * применение по drop через engine.placePiece.
  *
- * Маршрутизация ввода: GameScene решает, кому отдать pointerdown (drag или
- * SpecialInputController). Этот контроллер сам подписывается только на
- * pointermove/up/cancel — они активны лишь во время drag'а. Старт drag'а
- * инициирует GameScene через tryStartDrag().
+ * Спецфигуры (ранее тап-флоу SpecialInputController): теперь тоже drag.
+ * Во время перетаскивания регион проецируется на поле (showSpecialRegion) и следует
+ * за пальцем; применение по drop через engine.useSpecial, если в регионе ≥1 пустая
+ * клетка. Ориентация Line читается из «хвоста» движения над полем (вариант A):
+ * горизонтальный мазок → ряд, вертикальный → столбец. Движение переноса (вне поля)
+ * на ориентацию не влияет.
  *
- * Поток:
- *   tryStartDrag(pointer) → создаём drag-копию, original диммим.
- *   pointermove → двигаем копию (со смещением вверх), считаем target-клетку,
- *     показываем preview через engine.canPlacePiece.
- *   pointerup → если валидно — engine.placePiece, иначе возврат. Очистка.
- *   pointercancel → отмена, возврат.
- *
- * Спецфигуры идут через SpecialInputController, тут только normal/rainbow.
+ * GDD §14: смещение фигуры вверх от пальца, preview, pointercancel.
+ * Отход от GDD §B.9.2 (тап спецфигур → drag) зафиксирован как дизайн-решение.
  */
 import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
-import type { Piece, PlacementResult } from '../../core/types';
+import type { LineOrientation, Piece, PlacementResult } from '../../core/types';
 import { getShapeCells } from '../../core/shapes';
-import { BOARD_BOTTOM, BOARD_TOP, BOARD_X, CELL_SIZE } from '../layout';
-import { HAND_PIECE_CELL } from '../layout';
+import { getSpecialRegion, getEmptyCellsInRegion } from '../../core/specials';
+import { isInside } from '../../core/grid';
+import { BOARD_BOTTOM, BOARD_TOP, BOARD_X, CELL_SIZE, HAND_PIECE_CELL } from '../layout';
 import type { BoardView } from '../objects/BoardView';
 import type { HandView } from '../objects/HandView';
 import { PieceView } from '../objects/PieceView';
@@ -34,13 +31,21 @@ const DRAG_OFFSET_Y = -140;
 /** Минимальное смещение (px), после которого жест считается drag, а не тапом. */
 const DRAG_THRESHOLD = 8;
 
+/** Длина «хвоста» движения (px) для определения ориентации Line. */
+const TRAIL_LENGTH = 50;
+
+/** Гистерезис: ось должна доминировать в это число раз, чтобы переключить ориентацию. */
+const ORIENTATION_HYSTERESIS = 1.4;
+
 export interface DragControllerDeps {
   scene: Phaser.Scene;
   engine: GameEngine;
   boardView: BoardView;
   handView: HandView;
-  /** Колбэк после успешного хода. Передаёт результат из engine для FX/UI. */
+  /** Колбэк после успешной постановки обычной/радужной фигуры. */
   onPlaced: (result: PlacementResult, piece: Piece) => void;
+  /** Колбэк после успешного использования спецфигуры. */
+  onUsed: (result: PlacementResult, piece: Piece) => void;
 }
 
 export class DragController {
@@ -52,10 +57,12 @@ export class DragController {
   private pointerStartY = 0;
   private isDragging = false;
 
+  // Спецфигуры: ориентация Line + «хвост» недавнего движения.
+  private orientation: LineOrientation = 'row';
+  private trail: { x: number; y: number }[] = [];
+
   constructor(deps: DragControllerDeps) {
     this.deps = deps;
-    // move/up/cancel — активны только во время drag'а, но подписка глобальная;
-    // обработчики сами проверяют состояние.
     const { scene } = deps;
     scene.input.on('pointermove', (p: Phaser.Input.Pointer) => this.handleMove(p));
     scene.input.on('pointerup', (p: Phaser.Input.Pointer) => this.handleUp(p));
@@ -65,23 +72,24 @@ export class DragController {
   }
 
   /**
-   * Попробовать стартовать drag обычной/rainbow фигурой под курсором.
-   * Возвращает true, если фигура найдена и она не special (drag начат).
-   * Вызывается GameScene как обработчик pointerdown.
+   * Стартовать drag фигурой под курсором (любой: normal/rainbow/special).
+   * Возвращает true, если фигура найдена и drag начат.
    */
   tryStartDrag(pointer: Phaser.Input.Pointer): boolean {
-    if (this.isDragging) return false;
+    if (this.isDragInProgress) return false;
     const { handView } = this.deps;
     const view = handView.getPieceViews().find((v) => this.hitTest(pointer, v));
     if (!view) return false;
     const piece = this.findPieceInHand(view.pieceId);
-    if (!piece || piece.kind === 'special') return false; // спецфигуры — SpecialInputController
+    if (!piece) return false;
 
     this.draggingPiece = piece;
     this.originSlotIndex = this.findSlotIndex(piece.id);
     this.pointerStartX = pointer.x;
     this.pointerStartY = pointer.y;
     this.isDragging = false;
+    this.orientation = piece.orientation ?? 'row';
+    this.trail = [];
     this.dragCopy = this.createDragCopy(piece, pointer);
     view.setDimmed(true);
     return true;
@@ -91,6 +99,14 @@ export class DragController {
   get isDragInProgress(): boolean {
     return this.draggingPiece !== null;
   }
+
+  /** Отмена drag (pointercancel, gameout, внешний сброс). */
+  cancel(): void {
+    if (this.dragCopy) this.animateReturn();
+    this.cleanup();
+  }
+
+  // ─── Обработчики ────────────────────────────────────────────────────────
 
   private handleMove(pointer: Phaser.Input.Pointer): void {
     if (!this.draggingPiece || !this.dragCopy) return;
@@ -103,15 +119,14 @@ export class DragController {
       this.isDragging = true;
     }
 
-    this.dragCopy.setPosition(pointer.x, pointer.y + DRAG_OFFSET_Y);
+    const copyX = pointer.x;
+    const copyY = pointer.y + DRAG_OFFSET_Y;
+    this.dragCopy.setPosition(copyX, copyY);
 
-    const target = this.computeTarget(this.draggingPiece, pointer.x, pointer.y + DRAG_OFFSET_Y);
-    if (target) {
-      const cells = getShapeCells(this.draggingPiece.shape, target);
-      const ok = this.deps.engine.canPlacePiece(this.draggingPiece.id, target);
-      this.deps.boardView.showPreview(cells, ok);
+    if (this.draggingPiece.kind === 'special') {
+      this.updateSpecialPreview(pointer, copyX, copyY);
     } else {
-      this.deps.boardView.clearPreview();
+      this.updateNormalPreview(copyX, copyY);
     }
   }
 
@@ -121,36 +136,117 @@ export class DragController {
       return;
     }
 
-    // Если не перешли порог — считаем тапом, отменяем.
+    // Не перешли порог — считаем тапом, отменяем.
     if (!this.isDragging) {
       this.cancel();
       return;
     }
 
     const piece = this.draggingPiece;
-    const target = this.computeTarget(piece, pointer.x, pointer.y + DRAG_OFFSET_Y);
-    let placed = false;
-    if (target && this.deps.engine.canPlacePiece(piece.id, target)) {
-      const result = this.deps.engine.placePiece(piece.id, target);
-      placed = result.ok;
-      if (placed) {
-        this.deps.onPlaced(result, piece);
+    const copyX = pointer.x;
+    const copyY = pointer.y + DRAG_OFFSET_Y;
+    const placed =
+      piece.kind === 'special'
+        ? this.tryUseSpecial(piece, copyX, copyY)
+        : this.tryPlaceNormal(piece, copyX, copyY);
+
+    if (!placed) this.animateReturn();
+    this.cleanup();
+  }
+
+  // ─── Обычные/радужные фигуры ────────────────────────────────────────────
+
+  private updateNormalPreview(copyX: number, copyY: number): void {
+    const piece = this.draggingPiece!;
+    const target = this.computeShapeTarget(piece, copyX, copyY);
+    if (target) {
+      const cells = getShapeCells(piece.shape, target);
+      const ok = this.deps.engine.canPlacePiece(piece.id, target);
+      this.deps.boardView.showPreview(cells, ok);
+    } else {
+      this.deps.boardView.clearPreview();
+    }
+  }
+
+  private tryPlaceNormal(piece: Piece, copyX: number, copyY: number): boolean {
+    const target = this.computeShapeTarget(piece, copyX, copyY);
+    if (!target || !this.deps.engine.canPlacePiece(piece.id, target)) return false;
+    const result = this.deps.engine.placePiece(piece.id, target);
+    if (result.ok) this.deps.onPlaced(result, piece);
+    return result.ok;
+  }
+
+  // ─── Спецфигуры ─────────────────────────────────────────────────────────
+
+  private updateSpecialPreview(pointer: Phaser.Input.Pointer, copyX: number, copyY: number): void {
+    const piece = this.draggingPiece!;
+
+    // Ориентация Line — по «хвосту» движения, только пока копия над полем.
+    // Вне поля (перенос) хвост сбрасывается, чтобы жест переноса не влиял.
+    if (piece.special === 'line') {
+      if (this.isOverBoard(copyY)) {
+        this.updateTrail(pointer.x, pointer.y);
+        this.updateOrientationFromTrail();
+      } else {
+        this.trail = [];
       }
     }
 
-    if (!placed) {
-      this.animateReturn();
+    const target = this.pointToCell(copyX, copyY);
+    if (!target) {
+      this.deps.boardView.clearPreview();
+      return;
     }
-    this.cleanup();
+    const region = getSpecialRegion(piece.special!, target, this.orientation);
+    const empty = getEmptyCellsInRegion(this.deps.engine.state.grid, region);
+    this.deps.boardView.showSpecialRegion(region, empty);
   }
 
-  /** Отмена drag (pointercancel, gameout, внешний сброс). */
-  cancel(): void {
-    if (this.dragCopy) this.animateReturn();
-    this.cleanup();
+  private tryUseSpecial(piece: Piece, copyX: number, copyY: number): boolean {
+    const target = this.pointToCell(copyX, copyY);
+    if (!target) return false;
+    const region = getSpecialRegion(piece.special!, target, this.orientation);
+    const empty = getEmptyCellsInRegion(this.deps.engine.state.grid, region);
+    if (empty.length === 0) return false;
+
+    const result = this.deps.engine.useSpecial(piece.id, target, this.orientation);
+    if (result.ok) this.deps.onUsed(result, piece);
+    return result.ok;
   }
 
-  // ─── Внутренние ───────────────────────────────────────────────────────────
+  /** Ориентация Line по направлению «хвоста»: горизонталь → ряд, вертикаль → столбец. */
+  private updateOrientationFromTrail(): void {
+    if (this.trail.length < 2) return;
+    const first = this.trail[0]!;
+    const last = this.trail[this.trail.length - 1]!;
+    const dx = Math.abs(last.x - first.x);
+    const dy = Math.abs(last.y - first.y);
+    if (dx > dy * ORIENTATION_HYSTERESIS) this.orientation = 'row';
+    else if (dy > dx * ORIENTATION_HYSTERESIS) this.orientation = 'column';
+  }
+
+  /** Добавить точку в «хвост» и обрезать его до TRAIL_LENGTH px пути. */
+  private updateTrail(x: number, y: number): void {
+    this.trail.push({ x, y });
+    let total = 0;
+    let cut = 0;
+    for (let i = this.trail.length - 1; i > 0; i--) {
+      const a = this.trail[i]!;
+      const b = this.trail[i - 1]!;
+      total += Math.hypot(a.x - b.x, a.y - b.y);
+      if (total > TRAIL_LENGTH) {
+        cut = i;
+        break;
+      }
+    }
+    if (cut > 0) this.trail = this.trail.slice(cut);
+  }
+
+  private isOverBoard(copyY: number): boolean {
+    return copyY >= BOARD_TOP && copyY <= BOARD_BOTTOM;
+  }
+
+  // ─── Вспомогательные ────────────────────────────────────────────────────
 
   private cleanup(): void {
     this.deps.boardView.clearPreview();
@@ -162,6 +258,7 @@ export class DragController {
     this.draggingPiece = null;
     this.originSlotIndex = -1;
     this.isDragging = false;
+    this.trail = [];
   }
 
   private animateReturn(): void {
@@ -178,18 +275,16 @@ export class DragController {
 
   private createDragCopy(piece: Piece, pointer: Phaser.Input.Pointer): PieceView {
     const { scene } = this.deps;
-    const copy = new PieceView(scene, piece, HAND_PIECE_CELL * (piece.shape.length > 0 ? 5 : 1));
+    const slot = piece.kind === 'special' ? HAND_PIECE_CELL * 2 : HAND_PIECE_CELL * 5;
+    const copy = new PieceView(scene, piece, slot);
     copy.setPosition(pointer.x, pointer.y + DRAG_OFFSET_Y);
-    copy.setScale(1.1); // чуть крупнее при drag
+    copy.setScale(1.1);
     copy.setDepth(1000);
     return copy;
   }
 
-  /**
-   * Опорная клетка поля (target для engine) из позиции центра фигуры.
-   * target = верхний-левый угол bounding box фигуры на сетке.
-   */
-  private computeTarget(
+  /** Опорная клетка обычной фигуры: верхний-левый угол bounding box на сетке. */
+  private computeShapeTarget(
     piece: Piece,
     centerX: number,
     centerY: number,
@@ -213,6 +308,15 @@ export class DragController {
     return { x: gx, y: gy };
   }
 
+  /** Клетка-якорь спецфигуры: клетка под центром копии. */
+  private pointToCell(px: number, py: number): { x: number; y: number } | null {
+    if (py < BOARD_TOP || py > BOARD_BOTTOM) return null;
+    const x = Math.floor((px - BOARD_X) / CELL_SIZE);
+    const y = Math.floor((py - BOARD_TOP) / CELL_SIZE);
+    if (!isInside(x, y)) return null;
+    return { x, y };
+  }
+
   private hitTest(pointer: Phaser.Input.Pointer, view: PieceView): boolean {
     const half = view.slotSize / 2;
     return (
@@ -224,8 +328,7 @@ export class DragController {
   }
 
   private findPieceInHand(pieceId: string): Piece | null {
-    const hand = this.deps.engine.state.hand;
-    return hand.find((p) => p?.id === pieceId) ?? null;
+    return this.deps.engine.state.hand.find((p) => p?.id === pieceId) ?? null;
   }
 
   private findSlotIndex(pieceId: string): number {

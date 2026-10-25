@@ -30,7 +30,6 @@ import { HudView } from '../objects/HudView';
 import { EnergyView } from '../objects/EnergyView';
 import { FuryView } from '../objects/FuryView';
 import { DragController } from '../input/DragController';
-import { SpecialInputController } from '../input/SpecialInputController';
 import { Button } from '../ui/Button';
 import { REG_META } from './MenuScene';
 import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/storage';
@@ -49,7 +48,6 @@ export class GameScene extends Phaser.Scene {
   private energyView!: EnergyView;
   private furyView!: FuryView;
   private drag!: DragController;
-  private specialInput!: SpecialInputController;
   private furyTimer!: Phaser.Time.TimerEvent;
   private meta!: PlayerMeta;
   private lineClearFx!: LineClearFx;
@@ -87,19 +85,13 @@ export class GameScene extends Phaser.Scene {
       fontSize: 32,
     });
 
-    // Ввод. GameScene — единый маршрутизатор pointerdown.
+    // Ввод: все фигуры (обычные, радужные, спец) идут через единый drag.
     this.drag = new DragController({
       scene: this,
       engine: this.engine,
       boardView: this.boardView,
       handView: this.handView,
       onPlaced: (result, piece) => this.afterMove(result, piece),
-    });
-    this.specialInput = new SpecialInputController({
-      scene: this,
-      engine: this.engine,
-      boardView: this.boardView,
-      handView: this.handView,
       onUsed: (result, piece) => this.afterMove(result, piece),
     });
 
@@ -132,52 +124,9 @@ export class GameScene extends Phaser.Scene {
    * 2. Иначе если тап по спецфигуре — запускаем спец-режим.
    * 3. Иначе — отдаём DragController (обычная/rainbow фигура).
    */
+  /** Единый обработчик pointerdown: все фигуры (включая спец) идут через drag. */
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
-    if (this.specialInput.isActive()) {
-      // Тап по полю → обновить target спецфигуры.
-      if (this.specialInput.handleBoardTap(pointer.x, pointer.y)) return;
-      // Тап по другой спецфигуре → переключение.
-      const id = this.pieceIdAt(pointer);
-      if (id && this.isSpecialPiece(id)) {
-        this.specialInput.handlePieceTap(id);
-        return;
-      }
-      return; // в спец-режиме обычные тапы поглощаются
-    }
-
-    // Тап по спецфигуре → запуск спец-режима.
-    const id = this.pieceIdAt(pointer);
-    if (id && this.isSpecialPiece(id)) {
-      this.specialInput.handlePieceTap(id);
-      return;
-    }
-
-    // Иначе — drag обычной/rainbow фигуры.
     this.drag.tryStartDrag(pointer);
-  }
-
-  /** id фигуры под курсором или null. */
-  private pieceIdAt(pointer: Phaser.Input.Pointer): string | null {
-    const view = this.handView.getPieceViews().find((v) => this.hitPieceView(pointer, v));
-    return view?.pieceId ?? null;
-  }
-
-  private isSpecialPiece(pieceId: string): boolean {
-    const piece = this.engine.state.hand.find((p) => p?.id === pieceId);
-    return piece?.kind === 'special';
-  }
-
-  private hitPieceView(
-    pointer: Phaser.Input.Pointer,
-    view: { x: number; y: number; slotSize: number },
-  ): boolean {
-    const half = view.slotSize / 2;
-    return (
-      pointer.x >= view.x - half &&
-      pointer.x <= view.x + half &&
-      pointer.y >= view.y - half &&
-      pointer.y <= view.y + half
-    );
   }
 
   /** После успешного хода: анимации → перерисов → тосты → game over. */
@@ -200,7 +149,6 @@ export class GameScene extends Phaser.Scene {
 
     // На время анимаций блокируем ввод.
     this.drag.cancel();
-    this.specialInput.cancel();
     this.lockInput();
 
     this.showPlacedCells(result.placedCells, piece);
