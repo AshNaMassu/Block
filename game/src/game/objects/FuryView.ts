@@ -18,6 +18,7 @@ export class FuryView extends Phaser.GameObjects.Container {
   private readonly label: Phaser.GameObjects.Text;
   private readonly aura: Phaser.GameObjects.Graphics;
   private readonly auraColor: Phaser.GameObjects.Graphics;
+  private readonly chip: Phaser.GameObjects.Graphics;
   private wasActive = false;
 
   constructor(scene: Phaser.Scene) {
@@ -27,6 +28,14 @@ export class FuryView extends Phaser.GameObjects.Container {
     this.aura = scene.add.graphics();
     this.auraColor = scene.add.graphics();
     this.add([this.auraColor, this.aura]);
+
+    // Белая подложка под текст (читаемость на светлой теме).
+    this.chip = scene.add.graphics();
+    this.chip.fillStyle(0x8a7d66, 0.2);
+    this.chip.fillRoundedRect(-158, -34, 316, 68, 34);
+    this.chip.fillStyle(0xffffff, 0.96);
+    this.chip.fillRoundedRect(-160, -36, 316, 68, 34);
+    this.add(this.chip);
 
     this.label = scene.add
       .text(0, 0, '', {

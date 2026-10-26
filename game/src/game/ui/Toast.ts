@@ -7,7 +7,7 @@
  * показом.
  */
 import type Phaser from 'phaser';
-import { COLOR_BG, COLOR_TEXT_DIM } from '../../config/elements';
+import { COLOR_PANEL, COLOR_PANEL_SHADOW, COLOR_TEXT_DIM } from '../../config/elements';
 import { DESIGN_WIDTH } from '../layout';
 
 /** Данные одного тоста. */
@@ -131,10 +131,17 @@ export class ToastManager {
     const height = hasSubtitle ? 156 : 104;
 
     this.bg.clear();
-    this.bg.fillStyle(COLOR_BG, 0.85);
+    // Мягкая тень.
+    this.bg.fillStyle(COLOR_PANEL_SHADOW, 0.25);
+    this.bg.fillRoundedRect(-width / 2 + 4, -height / 2 + 8, width, height, 24);
+    // Белая панель + акцентная рамка.
+    this.bg.fillStyle(COLOR_PANEL, 0.96);
     this.bg.fillRoundedRect(-width / 2, -height / 2, width, height, 24);
     this.bg.lineStyle(3, toast.accent, 0.9);
     this.bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 24);
+    // Тонкая светлая полоса сверху (глянец).
+    this.bg.fillStyle(0xffffff, 0.35);
+    this.bg.fillRoundedRect(-width / 2 + 8, -height / 2 + 6, width - 16, 6, 3);
   }
 
   private hex(color: number): string {

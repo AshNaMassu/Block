@@ -381,14 +381,16 @@ export class GameScene extends Phaser.Scene {
     this.registry.set(REG_META, this.meta);
 
     const overlay = this.add
-      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x000000, 0.75)
+      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x453e33, 0.55)
       .setOrigin(0)
       .setDepth(200);
 
     const panel = this.add.container(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2).setDepth(201);
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x2d2b40, 1);
+    bg.fillStyle(0x8a7d66, 0.3);
+    bg.fillRoundedRect(-436, -336, 880, 680, 32);
+    bg.fillStyle(0xffffff, 1);
     bg.fillRoundedRect(-440, -340, 880, 680, 32);
     panel.add(bg);
 
@@ -441,11 +443,22 @@ export class GameScene extends Phaser.Scene {
       panel.destroy();
       this.scene.restart();
     });
-    new Button(this, DESIGN_WIDTH / 2 + 220, DESIGN_HEIGHT / 2 + 180, 'МЕНЮ', () => {
-      overlay.destroy();
-      panel.destroy();
-      this.scene.start('Menu');
-    });
+    new Button(
+      this,
+      DESIGN_WIDTH / 2 + 220,
+      DESIGN_HEIGHT / 2 + 180,
+      'МЕНЮ',
+      () => {
+        overlay.destroy();
+        panel.destroy();
+        this.scene.start('Menu');
+      },
+      {
+        fillColor: 0xefe8db,
+        edgeColor: 0xd9cfba,
+        textColor: COLOR_TEXT,
+      },
+    );
 
     // Подсказка про continue (Milestone 3, T-046).
     panel.add(

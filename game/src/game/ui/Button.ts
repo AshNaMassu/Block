@@ -1,14 +1,18 @@
 /**
- * Button — простая UI-кнопка (rounded rect + текст).
+ * Button — UI-кнопка (конфетный стиль: скругление + тёмный нижний край-объём).
  *
- * Greybox: рисуется через Graphics (без ассетов). Используется в MenuScene
- * и в game-over оверлете GameScene. Переиспользуемый — все параметры через
- * конфиг.
- *
- * В Milestone 3 (polish) можно заменить на текстуру/атлас.
+ * Рисуется через Graphics (без ассетов). Основная кнопка — тёплый оранжевый
+ * с белым текстом; вторичная — светлая с тёмным текстом (fillColor override).
+ * Переиспользуемая — все параметры через конфиг.
  */
 import Phaser from 'phaser';
-import { COLOR_BUTTON, COLOR_BUTTON_HOVER, COLOR_TEXT } from '../../config/elements';
+import {
+  COLOR_BUTTON,
+  COLOR_BUTTON_EDGE,
+  COLOR_BUTTON_HOVER,
+  COLOR_BUTTON_TEXT,
+  darken,
+} from '../../config/elements';
 
 export interface ButtonStyle {
   width: number;
@@ -16,6 +20,8 @@ export interface ButtonStyle {
   fontSize: number;
   fillColor: number;
   hoverColor: number;
+  /** Тёмный нижний край (объём). */
+  edgeColor: number;
   textColor: number;
   radius: number;
 }
@@ -26,9 +32,13 @@ const DEFAULT_STYLE: ButtonStyle = {
   fontSize: 48,
   fillColor: COLOR_BUTTON,
   hoverColor: COLOR_BUTTON_HOVER,
-  textColor: COLOR_TEXT,
-  radius: 24,
+  edgeColor: COLOR_BUTTON_EDGE,
+  textColor: COLOR_BUTTON_TEXT,
+  radius: 28,
 };
+
+/** Глубина края-объёма (px). */
+const EDGE_DEPTH = 8;
 
 export class Button extends Phaser.GameObjects.Container {
   private readonly bg: Phaser.GameObjects.Graphics;
@@ -45,7 +55,12 @@ export class Button extends Phaser.GameObjects.Container {
     style: Partial<ButtonStyle> = {},
   ) {
     super(scene, x, y);
-    this.style = { ...DEFAULT_STYLE, ...style };
+    this.style = {
+      ...DEFAULT_STYLE,
+      ...style,
+      // Если задан fillColor без edgeColor — край считаем от него.
+      ...(style.fillColor && !style.edgeColor ? { edgeColor: darken(style.fillColor, 0.25) } : {}),
+    };
 
     this.bg = scene.add.graphics();
     this.drawBg(this.style.fillColor);
@@ -54,18 +69,19 @@ export class Button extends Phaser.GameObjects.Container {
       .text(0, 0, text, {
         fontFamily: 'system-ui, Arial, sans-serif',
         fontSize: `${this.style.fontSize}px`,
-        color: this.colorToHex(this.style.textColor),
+        color: `#${this.style.textColor.toString(16).padStart(6, '0')}`,
         align: 'center',
       })
       .setOrigin(0.5);
 
     this.add([this.bg, this.label]);
+    this.label.setY(-EDGE_DEPTH / 2);
 
     const hitArea = new Phaser.Geom.Rectangle(
       -this.style.width / 2,
       -this.style.height / 2,
       this.style.width,
-      this.style.height,
+      this.style.height + EDGE_DEPTH,
     );
     this.setInteractive(hitArea, Phaser.Geom.Rectangle.Contains);
 
@@ -95,13 +111,25 @@ export class Button extends Phaser.GameObjects.Container {
   }
 
   private drawBg(color: number): void {
-    const { width, height, radius } = this.style;
+    const { width, height, radius, edgeColor } = this.style;
+    const alpha = this.enabled ? 1 : 0.5;
     this.bg.clear();
-    this.bg.fillStyle(color, this.enabled ? 1 : 0.5);
-    this.bg.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
-  }
 
-  private colorToHex(color: number): string {
-    return `#${color.toString(16).padStart(6, '0')}`;
+    // Мягкая тень под кнопкой.
+    this.bg.fillStyle(0x8a7d66, 0.22 * alpha);
+    this.bg.fillRoundedRect(-width / 2 + 4, -height / 2 + 10, width, height, radius);
+
+    // Тёмный край-объём (снизу).
+    this.bg.fillStyle(edgeColor, alpha);
+    this.bg.fillRoundedRect(-width / 2, -height / 2, width, height, radius);
+
+    // Основная плашка (приподнята на глубину края).
+    this.bg.fillStyle(color, alpha);
+    this.bg.fillRoundedRect(-width / 2, -height / 2 - EDGE_DEPTH, width, height, radius);
+    this.bg.fillRoundedRect(-width / 2, -height / 2, width, height - EDGE_DEPTH, radius);
+
+    // Светлый верхний блик.
+    this.bg.fillStyle(0xffffff, 0.22 * alpha);
+    this.bg.fillRoundedRect(-width / 2 + 6, -height / 2 - EDGE_DEPTH + 5, width - 12, 10, 5);
   }
 }

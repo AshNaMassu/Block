@@ -1,14 +1,21 @@
 /**
  * MenuScene — главное меню (T-031).
  *
- * Элементы: тайтл, кнопка Play, кнопка How To (заглушка), строка с best/stars
- * и текущим множителем из registry (синхронизируется storage.loadMeta).
+ * Элементы: тайтл, декоративные кристаллы стихий, кнопка Play, кнопка How To,
+ * строка с best/stars и текущим множителем из registry.
  *
- * Acceptance: Play → GameScene; How To → заглушка (toast/алерт); best/stars/mult
+ * Acceptance: Play → GameScene; How To → модалка с правилами; best/stars/mult
  * отображаются.
  */
 import Phaser from 'phaser';
-import { COLOR_BG, COLOR_GOLD, COLOR_TEXT, COLOR_TEXT_DIM } from '../../config/elements';
+import {
+  COLOR_BG,
+  COLOR_GOLD,
+  COLOR_TEXT,
+  COLOR_TEXT_DIM,
+  ELEMENT_COLORS,
+  darken,
+} from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { loadMeta, type PlayerMeta } from '../../platform/storage';
 import { currentMultiplier } from '../../core/fury';
@@ -32,18 +39,22 @@ export class MenuScene extends Phaser.Scene {
 
     // Тайтл.
     this.add
-      .text(DESIGN_WIDTH / 2, 440, 'ELEMENTAL\nBLAST', {
+      .text(DESIGN_WIDTH / 2, 420, 'ELEMENTAL\nBLAST', {
         fontFamily: 'system-ui, Arial, sans-serif',
         fontSize: '120px',
         color: this.hex(COLOR_TEXT),
         align: 'center',
         fontStyle: 'bold',
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setShadow(0, 6, 'rgba(138, 125, 102, 0.4)', 2, false, true);
+
+    // Декор: четыре кристалла стихий под тайтлом.
+    this.addCrystalDecor(DESIGN_WIDTH / 2, 660);
 
     // Подзаголовок.
     this.add
-      .text(DESIGN_WIDTH / 2, 640, 'блок-паззл со стихиями', {
+      .text(DESIGN_WIDTH / 2, 780, 'блок-паззл со стихиями', {
         fontFamily: 'system-ui, Arial, sans-serif',
         fontSize: '40px',
         color: this.hex(COLOR_TEXT_DIM),
@@ -55,11 +66,11 @@ export class MenuScene extends Phaser.Scene {
     this.add
       .text(
         DESIGN_WIDTH / 2,
-        780,
+        880,
         `РЕКОРД ${this.fmt(meta.best)}   ★ ${meta.stars} всего   ×${mult.toFixed(1)} старт`,
         {
           fontFamily: 'system-ui, Arial, sans-serif',
-          fontSize: '44px',
+          fontSize: '40px',
           color: this.hex(COLOR_GOLD),
           align: 'center',
         },
@@ -67,28 +78,46 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Кнопка Play.
-    new Button(this, DESIGN_WIDTH / 2, 1080, 'ИГРАТЬ', () => this.scene.start('Game'), {
+    new Button(this, DESIGN_WIDTH / 2, 1120, 'ИГРАТЬ', () => this.scene.start('Game'), {
       width: 560,
       height: 150,
       fontSize: 56,
     });
 
-    // Кнопка How To (заглушка — простой текст-оверлей).
-    new Button(this, DESIGN_WIDTH / 2, 1290, 'КАК ИГРАТЬ', () => this.showHowTo(), {
+    // Кнопка How To (вторичная — светлая).
+    new Button(this, DESIGN_WIDTH / 2, 1330, 'КАК ИГРАТЬ', () => this.showHowTo(), {
       width: 560,
       height: 130,
       fontSize: 44,
-      fillColor: 0x2a2840,
+      fillColor: 0xefe8db,
+      edgeColor: 0xd9cfba,
+      textColor: COLOR_TEXT,
     });
 
     // Подпись снизу.
     this.add
-      .text(DESIGN_WIDTH / 2, DESIGN_HEIGHT - 80, 'Milestone 2 · greybox', {
+      .text(DESIGN_WIDTH / 2, DESIGN_HEIGHT - 80, 'Элементальный блок-паззл', {
         fontFamily: 'system-ui, Arial, sans-serif',
         fontSize: '28px',
         color: this.hex(COLOR_TEXT_DIM),
       })
       .setOrigin(0.5);
+  }
+
+  /** Ряд из четырёх кристаллов стихий (декор). */
+  private addCrystalDecor(cx: number, cy: number): void {
+    const size = 84;
+    const gap = 28;
+    ELEMENT_COLORS.forEach((color, i) => {
+      const x = cx + (i - 1.5) * (size + gap);
+      const g = this.add.graphics();
+      g.fillStyle(darken(color, 0.22), 0.35);
+      g.fillRoundedRect(x - size / 2 + 3, cy - size / 2 + 8, size, size, 18);
+      g.fillStyle(color, 1);
+      g.fillRoundedRect(x - size / 2, cy - size / 2, size, size, 18);
+      g.fillStyle(0xffffff, 0.55);
+      g.fillRoundedRect(x - size / 2 + 10, cy - size / 2 + 10, size * 0.4, size * 0.16, 6);
+    });
   }
 
   /** Загрузить meta (best/stars) в registry. */
@@ -98,37 +127,45 @@ export class MenuScene extends Phaser.Scene {
     return meta;
   }
 
-  /** Заглушка How To — модальный текст. */
+  /** How To — модальный текст с правилами (включая детонаторов и мердж). */
   private showHowTo(): void {
     const overlay = this.add
-      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x000000, 0.7)
+      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x453e33, 0.55)
       .setOrigin(0)
       .setDepth(100);
     const panel = this.add.container(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2).setDepth(101);
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x2d2b40, 1);
+    bg.fillStyle(0x8a7d66, 0.3);
+    bg.fillRoundedRect(-436, -356, 880, 720, 32);
+    bg.fillStyle(0xffffff, 1);
     bg.fillRoundedRect(-440, -360, 880, 720, 32);
     panel.add(bg);
 
     const lines = [
       'КАК ИГРАТЬ',
       '',
-      'Ставьте фигуры на поле 8×8.',
+      'Ставьте фигуры на поле 8×8 перетаскиванием.',
       'Замыкайте ряд или столбец — он очистится.',
       '',
-      'Ряд из 8 клеток одной стихии = стихийная',
-      'линия → заполняет шкалу Энергии.',
+      'Ряд из 8 клеток одной стихии = стихийная линия:',
+      '2500 очков и +1⚡ в шкалу Энергии.',
       '',
-      '2+ стихийных линии за ход = комбо → спецфигура.',
-      '3 заполненных слота Энергии = Очищение → Fury.',
+      '2+ стихийные линии за ход = комбо → детонатор:',
+      '🔥 Пожар (взрыв 3×3) · 💧 Прилив (смывает линию)',
+      '🌀 Вихрь (сметает стихию) · 🌿 Родник (перекраска 4×4)',
+      'Детонация даёт ещё +1⚡.',
+      '',
+      '3 слота Энергии = Очищение → радужные + Fury (×очки).',
+      'Две одинаковые спецфигуры: тап по одной, тап по',
+      'другой — мердж в следующую ступень.',
       '',
       'Цель: набрать максимум очков, не затыкая поле.',
     ];
     const text = this.add
       .text(0, 0, lines.join('\n'), {
         fontFamily: 'system-ui, Arial, sans-serif',
-        fontSize: '32px',
+        fontSize: '30px',
         color: this.hex(COLOR_TEXT),
         align: 'center',
         lineSpacing: 8,

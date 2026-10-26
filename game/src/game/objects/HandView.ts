@@ -9,7 +9,7 @@
  */
 import Phaser from 'phaser';
 import type { Hand, Piece } from '../../core/types';
-import { COLOR_CELL_EMPTY, COLOR_GOLD } from '../../config/elements';
+import { COLOR_GOLD, COLOR_GRID, COLOR_PANEL } from '../../config/elements';
 import { CELL_RADIUS } from '../layout';
 import { HAND_SLOTS } from '../layout';
 import { PieceView } from './PieceView';
@@ -89,7 +89,7 @@ export class HandView extends Phaser.GameObjects.Container {
     return { x: slot.x, y: slot.y };
   }
 
-  /** Нарисовать рамку слота. */
+  /** Нарисовать рамку слота (светлая тема: белая плашка, бонусные — золотые). */
   private drawSlotFrame(
     scene: Phaser.Scene,
     container: Phaser.GameObjects.Container,
@@ -97,11 +97,15 @@ export class HandView extends Phaser.GameObjects.Container {
     bonus: boolean,
   ): void {
     const g = scene.add.graphics();
-    g.fillStyle(COLOR_CELL_EMPTY, 0.4);
-    g.fillRoundedRect(-size / 2, -size / 2, size, size, CELL_RADIUS);
     if (bonus) {
-      // Золотая рамка для бонусных слотов.
-      g.lineStyle(3, COLOR_GOLD, 0.7);
+      g.fillStyle(0xffd700, 0.1);
+      g.fillRoundedRect(-size / 2, -size / 2, size, size, CELL_RADIUS);
+      g.lineStyle(3, COLOR_GOLD, 0.9);
+      g.strokeRoundedRect(-size / 2 + 2, -size / 2 + 2, size - 4, size - 4, CELL_RADIUS);
+    } else {
+      g.fillStyle(COLOR_PANEL, 0.55);
+      g.fillRoundedRect(-size / 2, -size / 2, size, size, CELL_RADIUS);
+      g.lineStyle(2, COLOR_GRID, 0.9);
       g.strokeRoundedRect(-size / 2 + 2, -size / 2 + 2, size - 4, size - 4, CELL_RADIUS);
     }
     container.add(g);

@@ -11,7 +11,7 @@
 import Phaser from 'phaser';
 import type { EnergyState } from '../../core/types';
 import { ENERGY_CAPACITY } from '../../config/balance';
-import { COLOR_CELL_EMPTY } from '../../config/elements';
+import { COLOR_CELL_EMPTY, COLOR_GRID } from '../../config/elements';
 import { CELL_RADIUS, ENERGY_GAP, ENERGY_SLOT_SIZE, ENERGY_Y, energySlotX } from '../layout';
 import { TEX_CELL_SIZE, cellTextureKey } from '../textures';
 
@@ -30,7 +30,7 @@ export class EnergyView extends Phaser.GameObjects.Container {
 
       // Фон-рамка слота.
       const bg = scene.add.graphics();
-      bg.fillStyle(COLOR_CELL_EMPTY, 0.5);
+      bg.fillStyle(COLOR_CELL_EMPTY, 0.9);
       bg.fillRoundedRect(
         -ENERGY_SLOT_SIZE / 2,
         -ENERGY_SLOT_SIZE / 2,
@@ -38,7 +38,7 @@ export class EnergyView extends Phaser.GameObjects.Container {
         ENERGY_SLOT_SIZE,
         CELL_RADIUS,
       );
-      bg.lineStyle(2, 0x4a4870, 0.8);
+      bg.lineStyle(2, COLOR_GRID, 0.9);
       bg.strokeRoundedRect(
         -ENERGY_SLOT_SIZE / 2 + 1,
         -ENERGY_SLOT_SIZE / 2 + 1,

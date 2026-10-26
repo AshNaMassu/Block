@@ -1,19 +1,23 @@
 /**
- * PreloadScene — генерация процедурных текстур (без ассетов, greybox).
+ * PreloadScene — генерация процедурных текстур (без ассетов).
  *
- * Создаёт все текстуры из `game/textures.ts`: клетки стихий, multi, preview,
- * rainbow, спецфигуры. После генерации переходит в MenuScene.
+ * Тема «Кристаллы»: клетки стихий — фасеточные кристаллы (светлая верхняя
+ * грань, тёмная нижняя, блик), пустая клетка — мягкая «лунка», preview —
+ * полупрозрачные оверлеи. Радужная — белый перламутр + золотой контур.
  *
- * В Milestone 3 (polish) можно заменить на атлас TexturePacker — точки
- * потребления (ключи текстур) не изменятся.
+ * Central registry — PreloadScene создаёт, view-объекты потребляют по ключу.
+ * Формат именования: `tex-<имя>-<параметр>` (напр. `tex-cell-0` для огня).
  */
 import Phaser from 'phaser';
 import {
+  COLOR_CELL_EMPTY,
   COLOR_GOLD,
   COLOR_MULTI,
   COLOR_PREVIEW_BAD,
   COLOR_PREVIEW_OK,
   ELEMENT_COLORS,
+  darken,
+  lighten,
 } from '../../config/elements';
 import {
   ALL_CELL_TEXTURE_KEYS,
@@ -46,26 +50,92 @@ export class PreloadScene extends Phaser.Scene {
     // Используем неиспользуемые ключи — избегаем дублирования.
     void ALL_CELL_TEXTURE_KEYS;
 
-    // Клетки стихий (rounded rect, цвет по стихии).
+    // Кристаллы стихий (фасеточный rounded rect, цвет по стихии).
     ELEMENT_COLORS.forEach((color, i) => {
-      this.makeCellTexture(cellTextureKey(i), color);
+      this.makeCrystalTexture(cellTextureKey(i), color);
     });
 
-    // Multi-клетка (светлая «дикая»).
-    this.makeCellTexture(TEX_MULTI, COLOR_MULTI);
+    // Multi-клетка (белый перламутр — для радужных).
+    this.makeCrystalTexture(TEX_MULTI, COLOR_MULTI, 0.35);
 
-    // Пустая клетка (фон слота).
-    this.makeCellTexture(TEX_CELL_EMPTY, 0x1c1a2b, 0.6);
+    // Пустая клетка (мягкая лунка в светлом поле).
+    this.makeEmptyCellTexture();
 
     // Preview overlays.
     this.makeCellTexture(TEX_PREVIEW_OK, COLOR_PREVIEW_OK, 0.5);
     this.makeCellTexture(TEX_PREVIEW_BAD, COLOR_PREVIEW_BAD, 0.5);
 
-    // Радужная (белая база + золотой контур, 4-секторный упрощён).
+    // Радужная (4 сектора по стихиям + золотой контур).
     this.makeRainbowTexture();
+  }
 
-    // Спецфигуры-детонаторы рисуются из клеток стихий + символ (PieceView) —
-    // отдельных текстур не требуется.
+  /**
+   * Фасеточный кристалл: базовый rounded rect + светлая верхне-левая грань,
+   * тёмная нижне-правая, блик-искра.
+   */
+  private makeCrystalTexture(key: string, color: number, facetStrength = 1): void {
+    if (this.textures.exists(key)) return;
+    const g = this.add.graphics();
+    const S = TEX_CELL_SIZE;
+    const R = CELL_RADIUS;
+
+    // Базовый кристалл.
+    g.fillStyle(color, 1);
+    g.fillRoundedRect(0, 0, S, S, R);
+
+    // Верхне-левая светлая грань (скошенный скруглённый треугольник).
+    g.fillStyle(lighten(color, 0.32 * facetStrength), 1);
+    g.beginPath();
+    g.moveTo(0, R * 2.2);
+    g.lineTo(0, S * 0.55);
+    g.lineTo(S * 0.55, 0);
+    g.lineTo(R * 2.2, 0);
+    g.arc(R * 2.2, R * 2.2, R * 2.2, Math.PI, Math.PI * 1.5, false);
+    g.closePath();
+    g.fillPath();
+
+    // Нижне-правая тёмная грань.
+    g.fillStyle(darken(color, 0.16 * facetStrength), 1);
+    g.beginPath();
+    g.moveTo(S, S * 0.45);
+    g.lineTo(S, S - R);
+    g.arc(S - R, S - R, R, 0, Math.PI / 2, false);
+    g.lineTo(S * 0.45, S);
+    g.closePath();
+    g.fillPath();
+
+    // Тонкая светлая окантовка (кромка кристалла).
+    g.lineStyle(2, lighten(color, 0.55), 0.8);
+    g.strokeRoundedRect(1, 1, S - 2, S - 2, R);
+
+    // Блик-искра в верхнем левом углу.
+    g.fillStyle(0xffffff, 0.75);
+    g.fillRoundedRect(S * 0.16, S * 0.16, S * 0.2, S * 0.09, 4);
+
+    g.generateTexture(key, S, S);
+    g.destroy();
+  }
+
+  /** Пустая клетка: светлая лунка с мягкой внутренней тенью сверху. */
+  private makeEmptyCellTexture(): void {
+    if (this.textures.exists(TEX_CELL_EMPTY)) return;
+    const g = this.add.graphics();
+    const S = TEX_CELL_SIZE;
+    const R = CELL_RADIUS;
+
+    g.fillStyle(COLOR_CELL_EMPTY, 1);
+    g.fillRoundedRect(0, 0, S, S, R);
+
+    // Внутренняя тень сверху (лунка утоплена).
+    g.fillStyle(darken(COLOR_CELL_EMPTY, 0.1), 0.7);
+    g.fillRoundedRect(0, 0, S, S * 0.14, { tl: R, tr: R, bl: 0, br: 0 });
+
+    // Светлый нижний край (свет падает сверху).
+    g.fillStyle(lighten(COLOR_CELL_EMPTY, 0.6), 0.8);
+    g.fillRoundedRect(2, S - 5, S - 4, 3, 2);
+
+    g.generateTexture(TEX_CELL_EMPTY, S, S);
+    g.destroy();
   }
 
   private makeCellTexture(key: string, color: number, alpha = 1): void {
@@ -80,7 +150,7 @@ export class PreloadScene extends Phaser.Scene {
   private makeRainbowTexture(): void {
     if (this.textures.exists(TEX_RAINBOW)) return;
     const g = this.add.graphics();
-    // 4 сектора по стихиям (упрощённый «радужный» градиент Block Blast).
+    // 4 сектора по стихиям (упрощённый «радужный» кристалл).
     const half = TEX_CELL_SIZE / 2;
     const q = CELL_RADIUS / 2;
     g.fillStyle(ELEMENT_COLORS[0], 1);
@@ -91,6 +161,15 @@ export class PreloadScene extends Phaser.Scene {
     g.fillRoundedRect(0, half, half, half, q);
     g.fillStyle(ELEMENT_COLORS[3], 1);
     g.fillRoundedRect(half, half, half, half, q);
+    // Белый перламутровый блик по диагонали.
+    g.fillStyle(0xffffff, 0.35);
+    g.beginPath();
+    g.moveTo(0, half);
+    g.lineTo(half, 0);
+    g.lineTo(half + half * 0.3, 0);
+    g.lineTo(0, half + half * 0.3);
+    g.closePath();
+    g.fillPath();
     // Золотой контур.
     g.lineStyle(4, COLOR_GOLD, 1);
     g.strokeRoundedRect(2, 2, TEX_CELL_SIZE - 4, TEX_CELL_SIZE - 4, CELL_RADIUS);
