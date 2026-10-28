@@ -42,6 +42,7 @@ import type {
   PlacementResult,
   Piece,
   SpecialReward,
+  SpecialType,
   Vec2,
 } from './types';
 
@@ -105,7 +106,46 @@ export class GameEngine {
 
   private spawnPiece(): Piece {
     const batch = spawnNormalBatch(this.rngNext, 1);
-    return batch[0]!;
+    const piece = batch[0]!;
+    // Дебаг: фиксированная стихия спавна (только обычная тройка).
+    if (this.debugSpawnElement !== null) piece.element = this.debugSpawnElement;
+    return piece;
+  }
+
+  // ─── Debug API (используется только дебаг-панелью, не боевой логикой) ────
+
+  /** Фильтр стихии спавна обычной тройки. null — обычный случайный спавн. */
+  debugSpawnElement: ElementId | null = null;
+
+  /** Дебаг: перезаполнить обычную тройку (если все 3 слота пусты). */
+  debugRefillHand(): boolean {
+    return this.refillNormal();
+  }
+
+  /** Дебаг: очистить поле. */
+  debugClearBoard(): void {
+    this.state.grid = createGrid();
+  }
+
+  /** Дебаг: опустошить шкалу энергии и сбросить Fury. */
+  debugResetEnergy(): void {
+    this.state.energy.slots = [];
+    this.state.fury = null;
+  }
+
+  /** Дебаг: выдать спецфигуру-детонатор в бонусный слот. */
+  debugGiveSpecial(type: SpecialType): void {
+    addSpecialPieces(this.state.hand, type, 1, 1);
+  }
+
+  /** Дебаг: выдать радужную в бонусный слот. */
+  debugGiveRainbow(): void {
+    addRainbowPieces(this.state.hand, 1, 1);
+  }
+
+  /** Дебаг: выдать +1⚡ заданной стихии (без триггера Очищения). */
+  debugGiveEnergy(element: ElementId): void {
+    if (this.state.energy.slots.length < 3) this.state.energy.slots.push(element);
   }
 
   private syncRngState(): void {

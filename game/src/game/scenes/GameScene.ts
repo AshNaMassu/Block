@@ -15,7 +15,15 @@ import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
 import { SPECIAL_ELEMENT } from '../../core/specials';
-import type { Cell, GameState, Piece, PlacementResult, SpecialType, Vec2 } from '../../core/types';
+import type {
+  Cell,
+  ElementId,
+  GameState,
+  Piece,
+  PlacementResult,
+  SpecialType,
+  Vec2,
+} from '../../core/types';
 import {
   COLOR_BG,
   COLOR_GOLD,
@@ -25,7 +33,15 @@ import {
   ELEMENT_COLORS,
   ELEMENT_NAMES,
 } from '../../config/elements';
-import { DESIGN_HEIGHT, DESIGN_WIDTH, BACK_BUTTON_X, BACK_BUTTON_Y } from '../layout';
+import {
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  BACK_BUTTON_X,
+  BACK_BUTTON_Y,
+  BOARD_TOP,
+  BOARD_X,
+  CELL_SIZE,
+} from '../layout';
 import { BoardView } from '../objects/BoardView';
 import { HandView } from '../objects/HandView';
 import { HudView } from '../objects/HudView';
@@ -34,6 +50,9 @@ import { FuryView } from '../objects/FuryView';
 import { DragController } from '../input/DragController';
 import { Button } from '../ui/Button';
 import { REG_META } from './MenuScene';
+import { REG_DEBUG_PRESET } from './DebugHubScene';
+import { applyDebugPreset } from '../debug/presets';
+import { DebugPanel } from '../debug/DebugPanel';
 import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/storage';
 import { LineClearFx } from '../fx/LineClearFx';
 import { CleansingFx } from '../fx/CleansingFx';
@@ -74,6 +93,7 @@ export class GameScene extends Phaser.Scene {
   private cleansingFx!: CleansingFx;
   private detonationFx!: DetonationFx;
   private toasts!: ToastManager;
+  private debugPanel: DebugPanel | null = null;
 
   constructor() {
     super('Game');
@@ -86,6 +106,12 @@ export class GameScene extends Phaser.Scene {
     this.engine = new GameEngine();
     this.engine.startGame();
     this.meta = (this.registry.get(REG_META) as PlayerMeta | undefined) ?? loadMeta();
+
+    // Дебаг: пресет или песочница (только из DebugHubScene).
+    const debugPreset = this.registry.get(REG_DEBUG_PRESET) as string | undefined;
+    if (debugPreset) {
+      applyDebugPreset(this.engine, debugPreset);
+    }
 
     // View-объекты.
     this.hudView = new HudView(this);
@@ -122,6 +148,18 @@ export class GameScene extends Phaser.Scene {
       this.handlePointerDown(pointer),
     );
 
+    // Дебаг-панель: только если зашли из DebugHubScene.
+    if (debugPreset) {
+      this.debugPanel = new DebugPanel({
+        scene: this,
+        engine: this.engine,
+        onBoardChanged: () => this.refreshBoard(),
+        onHandChanged: () => this.refreshHand(),
+        onEnergyChanged: () => this.refreshEnergy(),
+      });
+      this.registry.remove(REG_DEBUG_PRESET);
+    }
+
     // Таймер Fury: тик engine (истечение по timestamp) + перерисов HUD/Fury.
     this.furyTimer = this.time.addEvent({
       delay: FURY_TICK_MS,
@@ -138,9 +176,32 @@ export class GameScene extends Phaser.Scene {
     this.refresh();
   }
 
-  /** Единый обработчик pointerdown: все фигуры (включая спец) идут через drag. */
+  /** Единый обработчик pointerdown: кисть дебага над полем, иначе drag. */
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
+    // Кисть дебага: тап по клетке красит/стирает, drag не начинается.
+    const brush = this.debugPanel?.brushElement;
+    if (brush !== null && brush !== undefined) {
+      const cellPos = this.pointerToCell(pointer);
+      if (cellPos) {
+        this.paintCell(cellPos.x, cellPos.y, brush);
+        return;
+      }
+    }
     this.drag.tryStartDrag(pointer);
+  }
+
+  /** Клетка поля под указателем (или null вне поля). */
+  private pointerToCell(pointer: Phaser.Input.Pointer): Vec2 | null {
+    const x = Math.floor((pointer.x - BOARD_X) / CELL_SIZE);
+    const y = Math.floor((pointer.y - BOARD_TOP) / CELL_SIZE);
+    return x >= 0 && x < 8 && y >= 0 && y < 8 ? { x, y } : null;
+  }
+
+  /** Кисть дебага: положить стихию / ластик (-1) в клетку. */
+  private paintCell(x: number, y: number, brush: ElementId | -1): void {
+    this.engine.state.grid[y]![x] =
+      brush === -1 ? null : { element: brush, multi: false, special: false };
+    this.refreshBoard();
   }
 
   /** Мердж двух спецфигур в руке: перерисов руки + тост. */
@@ -164,6 +225,7 @@ export class GameScene extends Phaser.Scene {
     // Рука и счёт уже изменились в engine — обновляем сразу.
     this.refreshHand();
     this.refreshHud();
+    this.debugPanel?.showResult(result);
 
     if (result.clearedLines.length === 0) {
       this.refreshBoard();

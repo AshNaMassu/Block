@@ -94,6 +94,17 @@ export class MenuScene extends Phaser.Scene {
       textColor: COLOR_TEXT,
     });
 
+    // Дебаг-хаб: только в dev-сборке.
+    if (import.meta.env.DEV) {
+      new Button(this, DESIGN_WIDTH / 2, 1500, '🐞 DEBUG', () => this.scene.start('DebugHub'), {
+        width: 400,
+        height: 100,
+        fontSize: 36,
+        fillColor: 0x6c5ce7,
+        textColor: 0xffffff,
+      });
+    }
+
     // Подпись снизу.
     this.add
       .text(DESIGN_WIDTH / 2, DESIGN_HEIGHT - 80, 'Элементальный блок-паззл', {
