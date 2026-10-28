@@ -8,7 +8,7 @@
 export const BOARD_SIZE = 8;
 
 /** Число стихий. */
-export const ELEMENT_COUNT = 1;
+export const ELEMENT_COUNT = 4;
 
 /** Размер обычной руки (фигуры, обновляемые тройками). */
 export const HAND_NORMAL_SIZE = 3;
