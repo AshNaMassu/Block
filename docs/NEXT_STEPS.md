@@ -3,19 +3,14 @@
 Актуально после коммита `wip: дебаг-режим` на ветке `feature/debug-mode`.
 Стек веток: `main` → `feature/elemental-detonators` → `feature/crystal-visual` → `feature/debug-mode`.
 
-## 1. Баг: залипший preview-оверлей после drag&drop
+## 1. Замечание для браузерных тестов drag&drop (не баг)
 
-**Симптом:** после постановки фигуры на поле остаётся один зелёный
-preview-оверлей (TEX_PREVIEW_OK) на клетке рядом с местом постановки.
-Воспроизводится: dev-сервер → DEBUG → пресет «🔥 Пожар — центр» → перетащить
-Пожар из бонусного слота на (3,3).
-
-**Куда смотреть:** `game/src/game/input/DragController.ts` — порядок
-`handleUp` (place → onPlaced → cleanup → clearPreview) и `handleMove`
-(последний `showPreview` после финального `clearPreview`?). Возможно,
-CUA/тач-ввод присылает pointermove после pointerup, либо preview рисуется
-между `onPlaced` и `cleanup`. Проверить, что `cleanup()` всегда последний
-и `clearPreview()` вызывается после любого `showPreview`.
+«Зелёная клетка после детонации» в первом прогоне оказалась НЕ багом:
+drag-копия рендерится на 140 design-px выше пальца (DRAG_OFFSET_Y в
+DragController), и постановка идёт по копии. При автотесте через CUA пальцем
+нужно целиться на 70 css-px НИЖЕ центра целевой клетки (540-viewport).
+Проверено: `previewImages.length === 0` после хода, взрыв 3×3 ложится точно
+вокруг (3,3). Оверлеи очищаются корректно.
 
 ## 2. Прогнать остальные пресеты в браузере
 
