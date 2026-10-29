@@ -13,7 +13,7 @@
  *
  * Изменения поля/руки сообщаются колбэками — GameScene делает refresh.
  */
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
 import type { ElementId, PlacementResult, SpecialType } from '../../core/types';
 import { COLOR_PANEL, COLOR_TEXT, COLOR_TEXT_DIM, ELEMENT_COLORS } from '../../config/elements';
