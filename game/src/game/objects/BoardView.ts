@@ -10,7 +10,7 @@
 import Phaser from 'phaser';
 import type { Grid, Vec2 } from '../../core/types';
 import { BOARD_SIZE } from '../../config/balance';
-import { COLOR_GRID, COLOR_PANEL } from '../../config/elements';
+import { COLOR_GRID, COLOR_PANEL, COLOR_PANEL_SHADOW } from '../../config/elements';
 import { BOARD_PIXEL_SIZE, BOARD_TOP, BOARD_X, CELL_SIZE } from '../layout';
 import { TEX_PREVIEW_BAD, TEX_PREVIEW_OK } from '../textures';
 import { CellView } from './CellView';
@@ -23,10 +23,10 @@ export class BoardView extends Phaser.GameObjects.Container {
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
 
-    // Белая панель-подложка с мягкой тенью (поле как физический объект).
+    // Панель-подложка с мягкой тенью (поле как физический объект).
     const PAD = 24;
     const panel = scene.add.graphics();
-    panel.fillStyle(0x8a7d66, 0.18);
+    panel.fillStyle(COLOR_PANEL_SHADOW, 0.18);
     panel.fillRoundedRect(
       BOARD_X - PAD + 6,
       BOARD_TOP - PAD + 14,

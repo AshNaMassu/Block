@@ -98,7 +98,7 @@ export class HandView extends Phaser.GameObjects.Container {
   ): void {
     const g = scene.add.graphics();
     if (bonus) {
-      g.fillStyle(0xffd700, 0.1);
+      g.fillStyle(COLOR_GOLD, 0.1);
       g.fillRoundedRect(-size / 2, -size / 2, size, size, CELL_RADIUS);
       g.lineStyle(3, COLOR_GOLD, 0.9);
       g.strokeRoundedRect(-size / 2 + 2, -size / 2 + 2, size - 4, size - 4, CELL_RADIUS);

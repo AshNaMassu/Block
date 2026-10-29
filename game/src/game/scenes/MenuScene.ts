@@ -10,7 +10,12 @@
 import Phaser from 'phaser';
 import {
   COLOR_BG,
+  COLOR_BUTTON_SECONDARY,
+  COLOR_BUTTON_SECONDARY_EDGE,
   COLOR_GOLD,
+  COLOR_OVERLAY,
+  COLOR_PANEL,
+  COLOR_PANEL_SHADOW,
   COLOR_TEXT,
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
@@ -84,13 +89,13 @@ export class MenuScene extends Phaser.Scene {
       fontSize: 56,
     });
 
-    // Кнопка How To (вторичная — светлая).
+    // Кнопка How To (вторичная — тёмная панель).
     new Button(this, DESIGN_WIDTH / 2, 1330, 'КАК ИГРАТЬ', () => this.showHowTo(), {
       width: 560,
       height: 130,
       fontSize: 44,
-      fillColor: 0xefe8db,
-      edgeColor: 0xd9cfba,
+      fillColor: COLOR_BUTTON_SECONDARY,
+      edgeColor: COLOR_BUTTON_SECONDARY_EDGE,
       textColor: COLOR_TEXT,
     });
 
@@ -141,15 +146,15 @@ export class MenuScene extends Phaser.Scene {
   /** How To — модальный текст с правилами (включая детонаторов и мердж). */
   private showHowTo(): void {
     const overlay = this.add
-      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x453e33, 0.55)
+      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, COLOR_OVERLAY, 0.55)
       .setOrigin(0)
       .setDepth(100);
     const panel = this.add.container(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2).setDepth(101);
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x8a7d66, 0.3);
+    bg.fillStyle(COLOR_PANEL_SHADOW, 0.3);
     bg.fillRoundedRect(-436, -356, 880, 720, 32);
-    bg.fillStyle(0xffffff, 1);
+    bg.fillStyle(COLOR_PANEL, 1);
     bg.fillRoundedRect(-440, -360, 880, 720, 32);
     panel.add(bg);
 

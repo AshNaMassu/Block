@@ -1,9 +1,9 @@
 /**
- * Палитра стихий и UI-цветов — светлая тема «Кристаллы».
+ * Палитра стихий и UI-цветов — тёмная тема «Неоновая алхимия».
  *
- * Направление: светлый тёплый фон, клетки — фасеточные кристаллы стихий,
- * тёмный тёплый текст, конфетные кнопки. Аудитория Яндекс Игр голосует за
- * светлое, высококонтрастное, «конфетное».
+ * Направление (docs/DESIGN-neon-alchemy.md, §4/§28): глубокий тёмно-синий фон,
+ * стеклянные стихийные элементы, золото — ТОЛЬКО для бонусов/наград (§22),
+ * белый/светло-голубой — подтверждение, красный — ошибка.
  *
  * Правило (TECH_TASKS.md B.3.4): цвета и хекс-коды — здесь, не в сценах Phaser.
  * Стихии индексируются 0..3 в том же порядке, что ElementId (types.ts):
@@ -11,70 +11,73 @@
  */
 import type { ElementId } from '../core/types';
 
-/** Цвет фона игры (тёплый светлый пергамент). */
-export const COLOR_BG = 0xf7f3ec;
+/** Цвет фона игры (глубокий тёмно-синий, почти чёрный). */
+export const COLOR_BG = 0x060a13;
 
-/** Цвет линий сетки поля / рамок панелей. */
-export const COLOR_GRID = 0xe5ddce;
+/** Цвет рамок поля / панелей (лёгкая синяя обводка, без агрессии). */
+export const COLOR_GRID = 0x223252;
 
-/** Цвет пустой клетки поля (вставка-лунка, чуть темнее фона). */
-export const COLOR_CELL_EMPTY = 0xece5d8;
+/** Цвет пустой клетки поля (тёмная ниша, чуть светлее фона). */
+export const COLOR_CELL_EMPTY = 0x111c31;
 
-/** Цвет белой панели (поле, оверлеи, тосты). */
-export const COLOR_PANEL = 0xffffff;
+/** Цвет панелей (поле, оверлеи, тосты, подсказки). */
+export const COLOR_PANEL = 0x101a2e;
 
-/** Тень панели (полупрозрачный тёплый коричневый). */
-export const COLOR_PANEL_SHADOW = 0x8a7d66;
+/** Тень панели (полупрозрачный чёрный — на тёмном теме тёмная тень). */
+export const COLOR_PANEL_SHADOW = 0x000000;
 
-/** Цвет стихийных клеток по индексу ElementId (насыщенные кристальные). */
+/** Цвет затемняющего оверлея поверх сцены (диалоги, сцена смерти). */
+export const COLOR_OVERLAY = 0x060a13;
+
+/** Цвет стихийных клеток по индексу ElementId (стеклянные неоновые). */
 export const ELEMENT_COLORS: readonly number[] = [
-  0xf4503c, // 🔥 огонь — киноварь
-  0x2ea3e8, // 💧 вода — лазурь
-  0x3fb96b, // 🌿 земля — изумруд
-  0x8f6fe8, // 💨 воздух — аметист
+  0xff6a3d, // 🔥 огонь — тёплый оранжевый
+  0x38b6ff, // 💧 вода — голубой стеклянный
+  0x57d06c, // 🌿 земля — природный зелёный
+  0xbfa7ff, // 💨 воздух — лавандово-воздушный (не голубой!)
 ];
 
 /** Человекочитаемые имена стихий (для HowTo/дебага). */
 export const ELEMENT_NAMES: readonly string[] = ['Огонь', 'Вода', 'Земля', 'Воздух'];
 
-/** Цвет радужной фигуры (база — белый кристалл). */
+/** Цвет радужной фигуры (база — белый призматический кристалл). */
 export const COLOR_RAINBOW = 0xffffff;
 
-/** Золотой/янтарный контур радужной, бонусных слотов, звёзд. */
-export const COLOR_GOLD = 0xf5a623;
+/** Золотой/янтарный: бонусные слоты, радужная, награды, звёзды (ТОЛЬКО бонусы — DESIGN §22). */
+export const COLOR_GOLD = 0xffc24d;
 
 /** Цвет multi-клетки (радужной): белый кристалл с перламутровыми гранями. */
 export const COLOR_MULTI = 0xf2eef8;
 
-/** Основной цвет текста HUD/меню (тёмный тёплый). */
-export const COLOR_TEXT = 0x453e33;
+/** Основной цвет текста HUD/меню (почти белый, холодный). */
+export const COLOR_TEXT = 0xf4f7ff;
 
-/** Приглушённый цвет вторичного текста (best, подписи). */
-export const COLOR_TEXT_DIM = 0xa39a89;
+/** Приглушённый цвет вторичного текста (подписи, подсказки). */
+export const COLOR_TEXT_DIM = 0x9fb0d0;
 
-/** Цвет валидной постановки (preview). */
-export const COLOR_PREVIEW_OK = 0x53c26e;
+/** Цвет валидной постановки (preview) — светло-голубой «подтверждение», не зелёный (земля зелёная). */
+export const COLOR_PREVIEW_OK = 0x9ed4ff;
 
-/** Цвет невалидной постановки (preview). */
-export const COLOR_PREVIEW_BAD = 0xe2504a;
+/** Цвет невалидной постановки (preview) / ошибки. */
+export const COLOR_PREVIEW_BAD = 0xff4d6d;
 
-/** Цвет основной кнопки (тёплый янтарно-оранжевый, конфетный). */
-export const COLOR_BUTTON = 0xff9d5c;
+/** Цвет основной кнопки (светло-голубой — «подтверждение действия»). */
+export const COLOR_BUTTON = 0x56d2ff;
 
 /** Цвет основной кнопки при наведении/нажатии. */
-export const COLOR_BUTTON_HOVER = 0xffb37f;
+export const COLOR_BUTTON_HOVER = 0x7fdcff;
 
 /** Тёмный край кнопки (эффект объёма). */
-export const COLOR_BUTTON_EDGE = 0xe07f3f;
+export const COLOR_BUTTON_EDGE = 0x1687d8;
 
-/** Цвет вторичной кнопки (тихая светлая). */
-export const COLOR_BUTTON_SECONDARY = 0xefe8db;
+/** Цвет вторичной кнопки (тёмная панель). */
+export const COLOR_BUTTON_SECONDARY = 0x1a2440;
 
-/** Тёмный край вторичной кнопки. */
-export const COLOR_BUTTON_SECONDARY_EDGE = 0xd9cfba;
+/** Край вторичной кнопки. */
+export const COLOR_BUTTON_SECONDARY_EDGE = 0x26385a;
 
-/** Цвет текста на конфетных кнопках (белый). */
-export const COLOR_BUTTON_TEXT = 0xffffff;
+/** Цвет текста на основной кнопке (тёмный — на светло-голубом фоне). */
+export const COLOR_BUTTON_TEXT = 0x060a13;
 
 /** Получить цвет стихии по ElementId. */
 export function elementColor(element: ElementId | -1): number {

@@ -6,7 +6,13 @@
  * применяется сразу после startGame.
  */
 import Phaser from 'phaser';
-import { COLOR_BG, COLOR_TEXT, COLOR_TEXT_DIM } from '../../config/elements';
+import {
+  COLOR_BG,
+  COLOR_BUTTON_SECONDARY,
+  COLOR_BUTTON_SECONDARY_EDGE,
+  COLOR_TEXT,
+  COLOR_TEXT_DIM,
+} from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { Button } from '../ui/Button';
 import { DEBUG_PRESETS } from '../debug/presets';
@@ -51,8 +57,8 @@ export class DebugHubScene extends Phaser.Scene {
         width: 470,
         height: 100,
         fontSize: 28,
-        fillColor: 0xefe8db,
-        edgeColor: 0xd9cfba,
+        fillColor: COLOR_BUTTON_SECONDARY,
+        edgeColor: COLOR_BUTTON_SECONDARY_EDGE,
         textColor: COLOR_TEXT,
       });
       btn.setDepth(10);

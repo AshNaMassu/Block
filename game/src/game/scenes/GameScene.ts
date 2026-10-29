@@ -26,8 +26,13 @@ import type {
 } from '../../core/types';
 import {
   COLOR_BG,
+  COLOR_BUTTON_SECONDARY,
+  COLOR_BUTTON_SECONDARY_EDGE,
   COLOR_GOLD,
   COLOR_MULTI,
+  COLOR_OVERLAY,
+  COLOR_PANEL,
+  COLOR_PANEL_SHADOW,
   COLOR_TEXT,
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
@@ -443,16 +448,16 @@ export class GameScene extends Phaser.Scene {
     this.registry.set(REG_META, this.meta);
 
     const overlay = this.add
-      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x453e33, 0.55)
+      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, COLOR_OVERLAY, 0.55)
       .setOrigin(0)
       .setDepth(200);
 
     const panel = this.add.container(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2).setDepth(201);
 
     const bg = this.add.graphics();
-    bg.fillStyle(0x8a7d66, 0.3);
+    bg.fillStyle(COLOR_PANEL_SHADOW, 0.3);
     bg.fillRoundedRect(-436, -336, 880, 680, 32);
-    bg.fillStyle(0xffffff, 1);
+    bg.fillStyle(COLOR_PANEL, 1);
     bg.fillRoundedRect(-440, -340, 880, 680, 32);
     panel.add(bg);
 
@@ -516,8 +521,8 @@ export class GameScene extends Phaser.Scene {
         this.scene.start('Menu');
       },
       {
-        fillColor: 0xefe8db,
-        edgeColor: 0xd9cfba,
+        fillColor: COLOR_BUTTON_SECONDARY,
+        edgeColor: COLOR_BUTTON_SECONDARY_EDGE,
         textColor: COLOR_TEXT,
       },
     );

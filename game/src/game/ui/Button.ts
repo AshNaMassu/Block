@@ -11,6 +11,7 @@ import {
   COLOR_BUTTON_EDGE,
   COLOR_BUTTON_HOVER,
   COLOR_BUTTON_TEXT,
+  COLOR_PANEL_SHADOW,
   darken,
 } from '../../config/elements';
 
@@ -116,7 +117,7 @@ export class Button extends Phaser.GameObjects.Container {
     this.bg.clear();
 
     // Мягкая тень под кнопкой.
-    this.bg.fillStyle(0x8a7d66, 0.22 * alpha);
+    this.bg.fillStyle(COLOR_PANEL_SHADOW, 0.22 * alpha);
     this.bg.fillRoundedRect(-width / 2 + 4, -height / 2 + 10, width, height, radius);
 
     // Тёмный край-объём (снизу).

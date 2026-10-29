@@ -16,7 +16,16 @@
 import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
 import type { ElementId, PlacementResult, SpecialType } from '../../core/types';
-import { COLOR_PANEL, COLOR_TEXT, COLOR_TEXT_DIM, ELEMENT_COLORS } from '../../config/elements';
+import {
+  COLOR_BUTTON_SECONDARY,
+  COLOR_BUTTON_SECONDARY_EDGE,
+  COLOR_OVERLAY,
+  COLOR_PANEL,
+  COLOR_PANEL_SHADOW,
+  COLOR_TEXT,
+  COLOR_TEXT_DIM,
+  ELEMENT_COLORS,
+} from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { Button } from '../ui/Button';
 
@@ -116,7 +125,7 @@ export class DebugPanel {
   private open(): void {
     const { scene } = this.deps;
     this.overlay = scene.add
-      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, 0x453e33, 0.55)
+      .rectangle(0, 0, DESIGN_WIDTH, DESIGN_HEIGHT, COLOR_OVERLAY, 0.55)
       .setOrigin(0)
       .setDepth(250)
       .setInteractive(); // гасит клики под панелью
@@ -125,7 +134,7 @@ export class DebugPanel {
     this.panel = panel;
 
     const bg = scene.add.graphics();
-    bg.fillStyle(0x8a7d66, 0.3);
+    bg.fillStyle(COLOR_PANEL_SHADOW, 0.3);
     bg.fillRoundedRect(-436, -636, 880, 1280, 32);
     bg.fillStyle(COLOR_PANEL, 1);
     bg.fillRoundedRect(-440, -640, 880, 1280, 32);
@@ -138,7 +147,7 @@ export class DebugPanel {
     this.spawnRow = [];
     this.spawnRow.push(
       this.labeled(
-        this.addSmallButton(panel, -320, -430, 'ВСЕ', 0x8a8172, () => {
+        this.addSmallButton(panel, -320, -430, 'ВСЕ', COLOR_TEXT_DIM, () => {
           this.deps.engine.debugSpawnElement = null;
           this.markSelected(this.spawnRow, 'ВСЕ');
         }),
@@ -162,7 +171,7 @@ export class DebugPanel {
     this.brushRow = [];
     this.brushRow.push(
       this.labeled(
-        this.addSmallButton(panel, -400, -250, 'ВЫКЛ', 0x8a8172, () => {
+        this.addSmallButton(panel, -400, -250, 'ВЫКЛ', COLOR_TEXT_DIM, () => {
           this.brush = null;
           this.markSelected(this.brushRow, 'ВЫКЛ');
         }),
@@ -182,7 +191,7 @@ export class DebugPanel {
     });
     this.brushRow.push(
       this.labeled(
-        this.addSmallButton(panel, 400, -250, '🧽', 0x8a8172, () => {
+        this.addSmallButton(panel, 400, -250, '🧽', COLOR_TEXT_DIM, () => {
           this.brush = -1;
           this.markSelected(this.brushRow, '🧽');
         }),
@@ -227,7 +236,7 @@ export class DebugPanel {
       -200,
       290,
       'ОЧИСТИТЬ ПОЛЕ',
-      0x8a8172,
+      COLOR_TEXT_DIM,
       () => {
         this.deps.engine.debugClearBoard();
         this.deps.onBoardChanged();
@@ -239,7 +248,7 @@ export class DebugPanel {
       140,
       290,
       'РУКА ЗАНОВО',
-      0x8a8172,
+      COLOR_TEXT_DIM,
       () => {
         this.deps.engine.debugRefillHand();
         this.deps.onHandChanged();
@@ -252,8 +261,8 @@ export class DebugPanel {
       width: 400,
       height: 100,
       fontSize: 40,
-      fillColor: 0xefe8db,
-      edgeColor: 0xd9cfba,
+      fillColor: COLOR_BUTTON_SECONDARY,
+      edgeColor: COLOR_BUTTON_SECONDARY_EDGE,
       textColor: COLOR_TEXT,
     });
     panel.add(closeBtn);
