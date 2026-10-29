@@ -20,6 +20,7 @@ import {
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
   darken,
+  FONT_FAMILY,
 } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { loadMeta, type PlayerMeta } from '../../platform/storage';
@@ -45,7 +46,7 @@ export class MenuScene extends Phaser.Scene {
     // Тайтл.
     this.add
       .text(DESIGN_WIDTH / 2, 420, 'ELEMENTAL\nBLAST', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '120px',
         color: this.hex(COLOR_TEXT),
         align: 'center',
@@ -60,7 +61,7 @@ export class MenuScene extends Phaser.Scene {
     // Подзаголовок.
     this.add
       .text(DESIGN_WIDTH / 2, 780, 'блок-паззл со стихиями', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '40px',
         color: this.hex(COLOR_TEXT_DIM),
         align: 'center',
@@ -74,7 +75,7 @@ export class MenuScene extends Phaser.Scene {
         880,
         `РЕКОРД ${this.fmt(meta.best)}   ★ ${meta.stars} всего   ×${mult.toFixed(1)} старт`,
         {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '40px',
           color: this.hex(COLOR_GOLD),
           align: 'center',
@@ -113,7 +114,7 @@ export class MenuScene extends Phaser.Scene {
     // Подпись снизу.
     this.add
       .text(DESIGN_WIDTH / 2, DESIGN_HEIGHT - 80, 'Элементальный блок-паззл', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '28px',
         color: this.hex(COLOR_TEXT_DIM),
       })
@@ -180,7 +181,7 @@ export class MenuScene extends Phaser.Scene {
     ];
     const text = this.add
       .text(0, 0, lines.join('\n'), {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '30px',
         color: this.hex(COLOR_TEXT),
         align: 'center',

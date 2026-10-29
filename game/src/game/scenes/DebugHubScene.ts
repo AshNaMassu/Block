@@ -12,6 +12,7 @@ import {
   COLOR_BUTTON_SECONDARY_EDGE,
   COLOR_TEXT,
   COLOR_TEXT_DIM,
+  FONT_FAMILY,
 } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { Button } from '../ui/Button';
@@ -30,7 +31,7 @@ export class DebugHubScene extends Phaser.Scene {
 
     this.add
       .text(DESIGN_WIDTH / 2, 140, 'DEBUG', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '80px',
         fontStyle: 'bold',
         color: `#${COLOR_TEXT.toString(16).padStart(6, '0')}`,
@@ -66,7 +67,7 @@ export class DebugHubScene extends Phaser.Scene {
 
     this.add
       .text(DESIGN_WIDTH / 2, startY + Math.ceil(DEBUG_PRESETS.length / 2) * rowH + 40, '', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '26px',
         color: `#${COLOR_TEXT_DIM.toString(16).padStart(6, '0')}`,
       })

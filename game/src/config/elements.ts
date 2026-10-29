@@ -79,6 +79,9 @@ export const COLOR_BUTTON_SECONDARY_EDGE = 0x26385a;
 /** Цвет текста на основной кнопке (тёмный — на светло-голубом фоне). */
 export const COLOR_BUTTON_TEXT = 0x060a13;
 
+/** Семейство шрифта игры — Manrope, локальный woff2 (DES-2, DESIGN §19). */
+export const FONT_FAMILY = "'Manrope', system-ui, Arial, sans-serif";
+
 /** Получить цвет стихии по ElementId. */
 export function elementColor(element: ElementId | -1): number {
   return element < 0 ? COLOR_MULTI : ELEMENT_COLORS[element]!;

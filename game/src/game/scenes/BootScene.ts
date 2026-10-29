@@ -6,7 +6,7 @@
  * сейчас platform-слой — greybox-стаб storage.
  */
 import Phaser from 'phaser';
-import { COLOR_BG } from '../../config/elements';
+import { COLOR_BG, FONT_FAMILY } from '../../config/elements';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -16,7 +16,29 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(COLOR_BG);
     this.hideBootDom();
-    this.scene.start('Preload');
+    this.waitForFonts(() => this.scene.start('Preload'));
+  }
+
+  /**
+   * Ждать загрузку Manrope (document.fonts.ready), чтобы Phaser не отрисовал
+   * первые тексты системным шрифтом. Таймаут-фоллбэк 1.5с — игра не ждёт вечно.
+   */
+  private waitForFonts(next: () => void): void {
+    let done = false;
+    const finish = (): void => {
+      if (!done) {
+        done = true;
+        next();
+      }
+    };
+    this.time.delayedCall(1500, finish);
+    void document.fonts
+      .load(`700 32px ${FONT_FAMILY}`, 'ЯЯЯ 000')
+      .then(() => document.fonts.ready)
+      .then(finish)
+      .catch(() => {
+        /* фоллбэк — таймаут стартует Preload */
+      });
   }
 
   /** Скрыть DOM-заглушку из index.html. */

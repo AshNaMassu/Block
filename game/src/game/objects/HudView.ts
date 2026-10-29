@@ -6,7 +6,7 @@
  */
 import Phaser from 'phaser';
 import type { GameState } from '../../core/types';
-import { COLOR_TEXT, COLOR_TEXT_DIM, COLOR_GOLD } from '../../config/elements';
+import { FONT_FAMILY, COLOR_TEXT, COLOR_TEXT_DIM, COLOR_GOLD } from '../../config/elements';
 import {
   HUD_BEST_X,
   HUD_BEST_Y,
@@ -71,7 +71,7 @@ export class HudView extends Phaser.GameObjects.Container {
     color: number,
   ): Phaser.GameObjects.Text {
     return this.scene.add.text(x, y, text, {
-      fontFamily: 'system-ui, Arial, sans-serif',
+      fontFamily: FONT_FAMILY,
       fontSize,
       color: this.hex(color),
     });

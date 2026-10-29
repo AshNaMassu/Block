@@ -13,6 +13,7 @@ import {
   COLOR_BUTTON_TEXT,
   COLOR_PANEL_SHADOW,
   darken,
+  FONT_FAMILY,
 } from '../../config/elements';
 
 export interface ButtonStyle {
@@ -68,7 +69,7 @@ export class Button extends Phaser.GameObjects.Container {
 
     this.label = scene.add
       .text(0, 0, text, {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: `${this.style.fontSize}px`,
         color: `#${this.style.textColor.toString(16).padStart(6, '0')}`,
         align: 'center',

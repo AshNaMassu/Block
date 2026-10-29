@@ -11,7 +11,7 @@
  */
 import Phaser from 'phaser';
 import type { Piece } from '../../core/types';
-import { ELEMENT_COLORS, COLOR_GOLD, COLOR_MULTI } from '../../config/elements';
+import { FONT_FAMILY, ELEMENT_COLORS, COLOR_GOLD, COLOR_MULTI } from '../../config/elements';
 import { CELL_RADIUS } from '../layout';
 import { TEX_CELL_SIZE, TEX_MULTI, TEX_RAINBOW, cellTextureKey } from '../textures';
 import { SPECIAL_ELEMENT } from '../../core/specials';
@@ -86,7 +86,7 @@ export class PieceView extends Phaser.GameObjects.Container {
     if (isSpecial) {
       const label = this.scene.add
         .text(0, 0, SPECIAL_SYMBOLS[piece.special ?? 'fire'], {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '44px',
         })
         .setOrigin(0.5);

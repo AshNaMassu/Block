@@ -25,6 +25,7 @@ import {
   COLOR_TEXT,
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
+  FONT_FAMILY,
 } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
 import { Button } from '../ui/Button';
@@ -73,7 +74,7 @@ export class DebugPanel {
 
     this.summary = deps.scene.add
       .text(DESIGN_WIDTH / 2, 262, '', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '24px',
         color: hex(COLOR_TEXT_DIM),
         align: 'center',
@@ -284,7 +285,7 @@ export class DebugPanel {
   private makeTitle(y: number, text: string): Phaser.GameObjects.Text {
     return this.deps.scene.add
       .text(0, y, text, {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '44px',
         fontStyle: 'bold',
         color: hex(COLOR_TEXT),
@@ -295,7 +296,7 @@ export class DebugPanel {
   private makeSectionTitle(y: number, text: string): Phaser.GameObjects.Text {
     return this.deps.scene.add
       .text(0, y, text, {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '26px',
         color: hex(COLOR_TEXT_DIM),
       })

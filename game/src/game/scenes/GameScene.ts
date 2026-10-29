@@ -37,6 +37,7 @@ import {
   COLOR_TEXT_DIM,
   ELEMENT_COLORS,
   ELEMENT_NAMES,
+  FONT_FAMILY,
 } from '../../config/elements';
 import {
   DESIGN_HEIGHT,
@@ -464,7 +465,7 @@ export class GameScene extends Phaser.Scene {
     panel.add(
       this.add
         .text(0, -240, 'ИГРА ОКОНЧЕНА', {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '64px',
           color: this.hex(COLOR_GOLD),
           fontStyle: 'bold',
@@ -475,7 +476,7 @@ export class GameScene extends Phaser.Scene {
     panel.add(
       this.add
         .text(0, -130, `СЧЁТ\n${this.fmt(state.score)}`, {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '48px',
           color: this.hex(COLOR_TEXT),
           align: 'center',
@@ -487,7 +488,7 @@ export class GameScene extends Phaser.Scene {
     panel.add(
       this.add
         .text(0, 0, isBest ? '★ НОВЫЙ РЕКОРД!' : `Рекорд: ${this.fmt(this.meta.best)}`, {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '36px',
           color: this.hex(isBest ? COLOR_GOLD : COLOR_TEXT_DIM),
         })
@@ -497,7 +498,7 @@ export class GameScene extends Phaser.Scene {
     panel.add(
       this.add
         .text(0, 70, `★ ${this.meta.stars}`, {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '40px',
           color: this.hex(COLOR_GOLD),
         })
@@ -531,7 +532,7 @@ export class GameScene extends Phaser.Scene {
     panel.add(
       this.add
         .text(0, 250, '(continue будет в M3)', {
-          fontFamily: 'system-ui, Arial, sans-serif',
+          fontFamily: FONT_FAMILY,
           fontSize: '26px',
           color: this.hex(COLOR_TEXT_DIM),
         })

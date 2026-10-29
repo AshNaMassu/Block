@@ -7,7 +7,12 @@
  * показом.
  */
 import type Phaser from 'phaser';
-import { COLOR_PANEL, COLOR_PANEL_SHADOW, COLOR_TEXT_DIM } from '../../config/elements';
+import {
+  FONT_FAMILY,
+  COLOR_PANEL,
+  COLOR_PANEL_SHADOW,
+  COLOR_TEXT_DIM,
+} from '../../config/elements';
 import { DESIGN_WIDTH } from '../layout';
 
 /** Данные одного тоста. */
@@ -47,7 +52,7 @@ export class ToastManager {
 
     this.titleText = scene.add
       .text(0, 0, '', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '56px',
         fontStyle: 'bold',
         color: '#ffffff',
@@ -56,7 +61,7 @@ export class ToastManager {
 
     this.subtitleText = scene.add
       .text(0, 0, '', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '36px',
         color: this.hex(COLOR_TEXT_DIM),
       })

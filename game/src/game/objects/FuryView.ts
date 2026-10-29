@@ -11,7 +11,13 @@
 import Phaser from 'phaser';
 import type { FuryState } from '../../core/types';
 import { tickFury } from '../../core/fury';
-import { COLOR_GOLD, COLOR_PANEL, COLOR_PANEL_SHADOW, ELEMENT_COLORS } from '../../config/elements';
+import {
+  FONT_FAMILY,
+  COLOR_GOLD,
+  COLOR_PANEL,
+  COLOR_PANEL_SHADOW,
+  ELEMENT_COLORS,
+} from '../../config/elements';
 import { FURY_X, FURY_Y } from '../layout';
 
 export class FuryView extends Phaser.GameObjects.Container {
@@ -39,7 +45,7 @@ export class FuryView extends Phaser.GameObjects.Container {
 
     this.label = scene.add
       .text(0, 0, '', {
-        fontFamily: 'system-ui, Arial, sans-serif',
+        fontFamily: FONT_FAMILY,
         fontSize: '40px',
         color: this.hex(COLOR_GOLD),
         fontStyle: 'bold',
