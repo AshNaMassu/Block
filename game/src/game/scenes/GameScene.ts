@@ -14,6 +14,7 @@
 import Phaser from 'phaser';
 import { GameEngine } from '../../core/engine';
 import { currentMultiplier } from '../../core/fury';
+import { findElementalThreads } from '../../core/lines';
 import { SPECIAL_ELEMENT } from '../../core/specials';
 import type {
   Cell,
@@ -414,6 +415,11 @@ export class GameScene extends Phaser.Scene {
   /** Обновить только поле. */
   private refreshBoard(): void {
     this.boardView.update(this.engine.state.grid);
+    // Нити неполных стихийных линий (DES-6); радуга в руке → радужная обводка.
+    this.boardView.showThreads(
+      findElementalThreads(this.engine.state.grid),
+      this.engine.state.hand.some((p) => p?.kind === 'rainbow'),
+    );
   }
 
   /** Обновить руку. */
