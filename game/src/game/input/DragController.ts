@@ -21,8 +21,9 @@ import type { LineOrientation, Piece, PlacementResult } from '../../core/types';
 import { getShapeCells } from '../../core/shapes';
 import { specialShape } from '../../core/specials';
 import { mergeSpecialPieces, type MergeResult } from '../../core/hand';
+import { ELEMENT_COLORS } from '../../config/elements';
 import { BOARD_BOTTOM, BOARD_TOP, BOARD_X, CELL_SIZE, HAND_PIECE_CELL } from '../layout';
-import type { BoardView } from '../objects/BoardView';
+import type { BoardView, DragGhostInfo } from '../objects/BoardView';
 import type { HandView } from '../objects/HandView';
 import { PieceView } from '../objects/PieceView';
 
@@ -145,10 +146,43 @@ export class DragController {
     if (target) {
       const cells = getShapeCells(this.effectiveShape(), target);
       const ok = this.deps.engine.canPlacePiece(this.draggingPiece.id, target, this.orientation);
-      this.deps.boardView.showPreview(cells, ok);
+      // Предиктивный ghost (DES-5): симуляция считает награды заранее.
+      const ghost = ok ? this.buildGhostInfo(target) : null;
+      this.deps.boardView.showPreview(cells, ok, ghost ?? undefined);
     } else {
       this.deps.boardView.clearPreview();
     }
+  }
+
+  /**
+   * Ghost-инфо из симуляции постановки (DES-5, DESIGN §7/§23):
+   * строка награды «+2 500 · КОМБО ×2 · +1⚡» и зона детонации спецфигуры.
+   * target валиден (вызывающий уже проверил canPlacePiece).
+   */
+  private buildGhostInfo(target: { x: number; y: number }): DragGhostInfo {
+    const result = this.deps.engine.previewPlacement(
+      this.draggingPiece!.id,
+      target,
+      this.orientation,
+    );
+
+    const parts: string[] = [];
+    if (result.scoreGained > 0) {
+      parts.push(`+${result.scoreGained.toLocaleString('ru-RU')}`);
+    }
+    if (result.combo) parts.push(`КОМБО ×${result.combo.lines}`);
+    const bolts = result.elementalLines + (result.detonation ? 1 : 0);
+    if (bolts > 0) parts.push(`+${bolts}⚡`);
+    if (result.cleansing) parts.push('ОЧИЩЕНИЕ!');
+
+    let zoneCells: { x: number; y: number }[] = [];
+    let zoneColor = ELEMENT_COLORS[0]!;
+    if (result.detonation) {
+      zoneCells = result.detonation.region;
+      zoneColor = ELEMENT_COLORS[result.detonation.element] ?? zoneColor;
+    }
+
+    return { zoneCells, zoneColor, ghostText: parts.length > 0 ? parts.join('  ·  ') : null };
   }
 
   private handleUp(pointer: Phaser.Input.Pointer): void {
