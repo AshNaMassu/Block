@@ -144,8 +144,9 @@ function threadInLine(cells: (Cell | null)[]): { element: ElementId; natural: nu
       continue;
     }
     if (c.multi) continue; // multi совместим с любой стихией
-    if (element === null) element = c.element;
-    else if (c.element !== element) return null; // чужая стихия — нити нет
+    const el = c.element as ElementId; // multi отсечён выше — стихия обычная
+    if (element === null) element = el;
+    else if (el !== element) return null; // чужая стихия — нити нет
     natural++;
   }
   if (element === null || natural < 6 || empty === 0) return null;
