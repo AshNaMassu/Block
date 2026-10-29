@@ -336,6 +336,40 @@ export class GameEngine {
     return hasAnyMove(this.state);
   }
 
+  /**
+   * Симуляция постановки БЕЗ изменения боевого состояния (DES-4, DESIGN §7/§23).
+   *
+   * Прогоняет полный pipeline placePiece на клоне состояния и возвращает тот же
+   * PlacementResult. View строит по нему предиктивные подсветки: ghost-награды
+   * (+очки, +1⚡), бейдж «Комбо ×N» до хода, зоны спецфигур.
+   *
+   * RNG-последовательность боя не затрагивается: спавн refill-а происходит
+   * в клоне и на боевую руку не влияет. Недостаточно данных (нет фигуры/
+   * некуда ставить) — failResult, как у placePiece.
+   */
+  previewPlacement(
+    pieceId: string,
+    target: Vec2,
+    orientation: LineOrientation = 'row',
+  ): PlacementResult {
+    if (!this.canPlacePiece(pieceId, target, orientation)) {
+      return this.failResult('cannot_place');
+    }
+    const sim = GameEngine.forSimulation(structuredClone(this.state));
+    return sim.placePiece(pieceId, target, orientation);
+  }
+
+  /** Движок-двойник над готовым состоянием (только для симуляций, вне боевого цикла). */
+  private static forSimulation(state: GameState): GameEngine {
+    const sim = Object.create(GameEngine.prototype) as GameEngine;
+    const rng = createRng(state.rngState);
+    sim.rngNext = rng.next;
+    sim.rngGetState = rng.getState;
+    sim.state = state;
+    sim.debugSpawnElement = null;
+    return sim;
+  }
+
   /** Тик Fury (вызывать периодически view'ом, напр. раз в 200мс). */
   tickFury(): void {
     this.state.fury = tickFury(this.state.fury, this.now());
