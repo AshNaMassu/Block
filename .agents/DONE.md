@@ -16,3 +16,4 @@
 | T-030..T-037 | 2026-07-23 | см. PROGRESS | Greybox: Boot/Preload/Menu, BoardView 8×8, Hand/Piece, DragController, rainbow, HUD/Energy/Fury |
 | T-010..T-019 | 2026-07 | см. PROGRESS | Core-логика: types, RNG, grid, hand, lines, specials, combo, cleansing, energy, fury, engine |
 | T-001..T-003 | 2026-07 | см. PROGRESS | Каркас: TS strict + Phaser 3 + Vite + Vitest, ESLint/Prettier, структура модулей, guard на core |
+| DES-6 | 2026-10-29 | d35ab86, 344c526 | Нити неполных стихийных линий (6/7): core findElementalThreads + свечение/пульс/призрак награды, радужная обводка при радуге в руке; тесты 203/203 |
