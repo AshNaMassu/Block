@@ -2,6 +2,7 @@
 
 | Таск | Дата | Коммит | Суть (1 строка) |
 |---|---|---|---|
+| DES-2 | 2026-10-29 | 8ebebbd | Шрифт Manrope локально (cyr+latin woff2, вариативный 200–800), FONT_FAMILY в конфиге, BootScene ждёт document.fonts.ready; boot-экран перекрашен |
 | DES-1 | 2026-10-29 | 2f668e9 | Тёмная палитра «Неоновая алхимия» (DESIGN §4/§28): elements.ts + увод зашитых светлых цветов views/кнопок/оверлеев в константы; preview OK — светло-голубой; ветка feature/neon-alchemy |
 | MERGE-1 (мерж) | 2026-10-29 | 4cce3a1 | Цепочка main→detonators→crystal-visual→debug-mode слита в main без конфликтов; check 190/190; пуш ждёт автора; линт-фикс DebugPanel |
 |---|---|---|---|

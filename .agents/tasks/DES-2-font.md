@@ -1,7 +1,7 @@
 # DES-2: Шрифт с кириллицей — Manrope, загрузка woff2
 
 ## Статус
-🔧 В РАБОТЕ
+✅ ЗАВЕРШЁН — 8ebebbd, check зелёный, скриншот снят (подтверждение автором по скрину — по умолчанию ок).
 
 ## Контекст (что нужно знать)
 - Первоисточник: [docs/DESIGN-neon-alchemy.md](../../docs/DESIGN-neon-alchemy.md) §19 (типографика).
@@ -19,15 +19,15 @@
   старта Menu, иначе Phaser отрисует первые тексты системным шрифтом.
 
 ## Шаги
-- [ ] 1. Скачать woff2 (cyrillic + latin сабсеты, weights 400–800) в `game/public/fonts/`.
-- [ ] 2. @font-face в `game/index.html`.
-- [ ] 3. `FONT_FAMILY` в config; заменить инлайновые 'system-ui, Arial' на константу.
-- [ ] 4. BootScene: ждать document.fonts.ready (с таймаутом-фоллбэком ~1.5с).
-- [ ] 5. `npm run check`, скриншоты меню/поля, коммит, DONE/QUEUE.
+- [x] 1. woff2 скачаны (Google Fonts, вариативный 200..800): `game/public/fonts/manrope-cyrillic.woff2` (14 КБ) + `manrope-latin.woff2` (25 КБ).
+- [x] 2. @font-face с unicode-range в `game/index.html`; заодно boot-экран перекрашен в тёмную тему (хвост DES-1: background/theme-color #060A13).
+- [x] 3. `FONT_FAMILY` в config/elements.ts; заменил инлайновый `'system-ui, Arial, sans-serif'` в 9 файлах (Button, Toast, PieceView, HudView, FuryView, GameScene, MenuScene, DebugPanel, DebugHubScene).
+- [x] 4. BootScene: `waitForFonts` — document.fonts.load + fonts.ready, таймаут-фоллбэк 1.5с (флаг done против двойного next).
+- [x] 5. `npm run check` зелёный (190/190); скриншот меню с Manrope снят; коммит 8ebebbd; DONE/QUEUE обновлены.
 
-## Чекпоинт
-Последний шаг: 0
-Что сделано: таск заведён, шрифт выбран (Manrope), план зафиксирован
-Что дальше: шаг 1 — скачать woff2
-Изменённые файлы: —
-Открытые вопросы: нет
+## Чекпоинт (финальный)
+Последний шаг: 5
+Что сделано: Manrope локально (cyr+latin, вариативный), FONT_FAMILY в конфиге, BootScene ждёт шрифт; коммит 8ebebbd на feature/neon-alchemy
+Что дальше: DES-3 (пайплайн ассетов + промпты) или DES-4 (previewPlacement в core)
+Изменённые файлы: game/index.html, public/fonts/*, config/elements.ts, scenes/{Boot,Menu,Game,DebugHub}Scene.ts, objects/{PieceView,HudView,FuryView}.ts, ui/{Button,Toast}.ts, debug/DebugPanel.ts
+Открытые вопросы: табличные цифры через font-variant-numeric в canvas-тексте Phaser неприменимы — если счёт «прыгает», сделать fixed-width подкладку отдельной мелочью
