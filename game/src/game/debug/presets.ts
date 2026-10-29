@@ -95,11 +95,11 @@ export const DEBUG_PRESETS: readonly DebugPreset[] = [
   {
     id: 'fire-edge',
     title: '🔥 Пожар — угол',
-    description: 'Clamp 3×3 у угла (0,0): только 4 клетки',
+    description: 'Clamp 3×3 у угла: постановка в (0,0), вода в (0,1)',
     apply(engine) {
       const s = reset(engine);
-      setCell(s.grid, 0, 0, cell(1));
-      putSpecial(s, 3, 'fire');
+      setCell(s.grid, 0, 1, cell(1)); // вода — разрушится (клетка постановки должна быть пустой)
+      putSpecial(s, 3, 'fire'); // поставить в (0,0)
     },
   },
   {
