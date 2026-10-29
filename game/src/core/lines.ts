@@ -12,7 +12,7 @@
  * consumed слотов энергии и расчёт Чистого Очищения.
  */
 import { BOARD_SIZE } from '../config/balance';
-import type { Cell, Grid, LineInfo, LineOrientation } from './types';
+import type { Cell, ElementId, Grid, LineInfo, LineOrientation } from './types';
 
 /**
  * Классифицировать уже найденную линию (8 клеток).
@@ -94,6 +94,62 @@ export function findFullLines(grid: Grid): LineInfo[] {
   }
 
   return lines;
+}
+
+/**
+ * Неполная стихийная линия — «нить» (DES-6, DESIGN §6).
+ *
+ * Ряд/столбец, где все обычные не-multi клетки одной стихии, их 6 или 7,
+ * а остальные клетки пусты или multi (multi совместим с любой стихией —
+ * радуга, поставленная в пустую клетку, замыкает нить в стихийную линию).
+ */
+export interface ElementalThread {
+  type: LineOrientation;
+  index: number;
+  /** Стихия нити (цвет свечения). */
+  element: ElementId;
+  /** Сколько обычных клеток стихии уже стоит (6 или 7). */
+  natural: number;
+}
+
+/**
+ * Найти все нити на поле (6–7 клеток одной стихии, без чужих стихий в линии).
+ * Порядок как у findFullLines: строки сверху вниз, затем столбцы слева направо.
+ */
+export function findElementalThreads(grid: Grid): ElementalThread[] {
+  const threads: ElementalThread[] = [];
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    const t = threadInLine(
+      Array.from({ length: BOARD_SIZE }, (_, x) => grid[y]![x]),
+    );
+    if (t) threads.push({ type: 'row', index: y, ...t });
+  }
+  for (let x = 0; x < BOARD_SIZE; x++) {
+    const t = threadInLine(
+      Array.from({ length: BOARD_SIZE }, (_, y) => grid[y]![x]),
+    );
+    if (t) threads.push({ type: 'column', index: x, ...t });
+  }
+  return threads;
+}
+
+/** Стихия нити в линии из 8 клеток, null — нити нет. */
+function threadInLine(cells: (Cell | null)[]): { element: ElementId; natural: number } | null {
+  let element: ElementId | null = null;
+  let natural = 0;
+  let empty = 0;
+  for (const c of cells) {
+    if (!c) {
+      empty++;
+      continue;
+    }
+    if (c.multi) continue; // multi совместим с любой стихией
+    if (element === null) element = c.element;
+    else if (c.element !== element) return null; // чужая стихия — нити нет
+    natural++;
+  }
+  if (element === null || natural < 6 || empty === 0) return null;
+  return { element, natural };
 }
 
 /**
