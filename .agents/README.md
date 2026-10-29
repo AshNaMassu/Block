@@ -19,9 +19,10 @@
 | [README.md](README.md) | справочник | Этот файл: обзор проекта, запуск, главные грабли |
 | [STRUCTURE.md](STRUCTURE.md) | справочник | Карта файлов и папок `game/src`: кто за что отвечает |
 | docs/GDD-2.md | справочник | Правила, баланс, дизайн (GDD v1.3) |
+| docs/DESIGN-neon-alchemy.md | справочник | UX/UI-концепт тёмной темы «Неоновая алхимия» — первоисточник волн DES-1..15 |
 | docs/TECH_TASKS.md | справочник | Техспека: стек, архитектура, типы, задачи T-001..T-060 |
 | docs/POST-MVP.md | архив идей | Банк идей после MVP; в QUEUE попадают только конкретные таски |
-| 🗄 docs/PROGRESS.md, docs/GDD.md, docs/NEXT_STEPS.md, docs/TECH_TASKS.md (разделы прогресса) | архив | PROGRESS.md отстаёт от кода (см. грабли №1); NEXT_STEPS.md заменён QUEUE.md. История — `git log` |
+| 🗄 docs/PROGRESS.md, docs/GDD.md, docs/NEXT_STEPS.md, светлая тема «Кристаллы» (до DES-1) | архив | PROGRESS.md отстаёт от кода (см. грабли №1); NEXT_STEPS.md заменён QUEUE.md. История — `git log` |
 
 ## Проект в двух словах
 
