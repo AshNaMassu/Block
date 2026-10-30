@@ -105,3 +105,30 @@ export function clearSave(): void {
     // ignore
   }
 }
+
+// ─── First-time подсказки (DES-12) ───────────────────────────────────────────
+
+const KEY_HINTS = 'elemental_blast_hints';
+
+/** Показанные одноразовые подсказки (id). */
+export function loadShownHints(): string[] {
+  try {
+    const raw = localStorage.getItem(KEY_HINTS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Запомнить подсказку как показанную (best-effort). */
+export function markHintShown(id: string): void {
+  const shown = loadShownHints();
+  if (shown.includes(id)) return;
+  try {
+    localStorage.setItem(KEY_HINTS, JSON.stringify([...shown, id]));
+  } catch {
+    // ignore — best-effort
+  }
+}

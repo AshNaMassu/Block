@@ -62,7 +62,13 @@ import { REG_META } from './MenuScene';
 import { REG_DEBUG_PRESET } from './DebugHubScene';
 import { applyDebugPreset } from '../debug/presets';
 import { DebugPanel } from '../debug/DebugPanel';
-import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/storage';
+import {
+  loadMeta,
+  loadShownHints,
+  markHintShown,
+  updateMetaAfterGame,
+  type PlayerMeta,
+} from '../../platform/storage';
 import { LineClearFx } from '../fx/LineClearFx';
 import { CleansingFx } from '../fx/CleansingFx';
 import { DetonationFx } from '../fx/DetonationFx';
@@ -101,6 +107,8 @@ export class GameScene extends Phaser.Scene {
   private drag!: DragController;
   private furyTimer!: Phaser.Time.TimerEvent;
   private meta!: PlayerMeta;
+  /** Показанные одноразовые подсказки (DES-12). */
+  private shownHints: Set<string> = new Set();
   private lineClearFx!: LineClearFx;
   private cleansingFx!: CleansingFx;
   private detonationFx!: DetonationFx;
@@ -119,6 +127,7 @@ export class GameScene extends Phaser.Scene {
     this.engine = new GameEngine();
     this.engine.startGame();
     this.meta = (this.registry.get(REG_META) as PlayerMeta | undefined) ?? loadMeta();
+    this.shownHints = new Set(loadShownHints());
 
     // Дебаг: пресет или песочница (только из DebugHubScene).
     const debugPreset = this.registry.get(REG_DEBUG_PRESET) as string | undefined;
@@ -197,6 +206,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.refresh();
+
+    // Первая подсказка нового игрока (DES-12).
+    this.showHintOnce('hint-drag', 'Тащите фигуры на поле', '8 клеток одной стихии — линия ⚡');
   }
 
   /** Единый обработчик pointerdown: кисть дебага над полем, иначе drag. */
@@ -491,6 +503,42 @@ export class GameScene extends Phaser.Scene {
   private refreshHand(): void {
     this.handView.update(this.engine.state.hand);
     this.handView.updateMergeBadges(this.engine.state.hand);
+    this.checkHandHints();
+  }
+
+  /** Одноразовые подсказки по содержимому руки (DES-12). */
+  private checkHandHints(): void {
+    const specials = Array.from(this.engine.state.hand).filter(
+      (p): p is Piece => p?.kind === 'special',
+    );
+    if (specials.length > 0) {
+      this.showHintOnce(
+        'hint-special',
+        'Детонатор',
+        'Положите на поле — он активируется при постановке',
+      );
+    }
+
+    const counts = new Map<SpecialType, number>();
+    for (const p of specials) counts.set(p.special as SpecialType, (counts.get(p.special as SpecialType) ?? 0) + 1);
+    for (const n of counts.values()) {
+      if (n >= 2) {
+        this.showHintOnce(
+          'hint-merge',
+          'Пара для мерджа',
+          'Тап по первой, тап по второй — фигура уровнем выше',
+        );
+        break;
+      }
+    }
+  }
+
+  /** Показать подсказку один раз за профиль (DES-12). */
+  private showHintOnce(id: string, title: string, subtitle: string): void {
+    if (this.shownHints.has(id)) return;
+    this.shownHints.add(id);
+    markHintShown(id);
+    this.toasts.showAll([{ title, subtitle, accent: COLOR_GOLD, big: true }]);
   }
 
   /** Обновить энергию и Fury-индикатор. */

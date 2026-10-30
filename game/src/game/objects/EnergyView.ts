@@ -30,8 +30,7 @@ import {
   ENERGY_SLOT_SIZE,
   ENERGY_Y,
   energySlotX,
-} from '../layout';
-import { TEX_CELL_SIZE, TEX_FX_BOLT, cellTextureKey } from '../textures';
+} from '../layout';import { TEX_CELL_SIZE, TEX_FX_BOLT, cellTextureKey } from '../textures';
 import { ensureBoltTexture } from '../fx/EnergyBoltFx';
 
 export class EnergyView extends Phaser.GameObjects.Container {
@@ -88,6 +87,18 @@ export class EnergyView extends Phaser.GameObjects.Container {
       this.fills.push(fill);
       this.add(container);
     }
+
+    // Микроподпись шкалы (DES-12): цель — читается слева от слотов.
+    const rowRight = energySlotX(ENERGY_CAPACITY - 1, ENERGY_CAPACITY) + ENERGY_SLOT_SIZE / 2;
+    const caption = scene.add
+      .text(rowRight + 22, ENERGY_Y, `${ENERGY_CAPACITY} ⚡ → Очищение`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '26px',
+        color: `#${COLOR_TEXT_DIM.toString(16).padStart(6, '0')}`,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0.5);
+    this.add(caption);
 
     scene.add.existing(this);
   }

@@ -29,6 +29,19 @@ export class HandView extends Phaser.GameObjects.Container {
       this.add(container);
     }
 
+    // Микроподпись бонусного ряда (DES-12): награды Очищения/комбо.
+    const lastBonus = HAND_SLOTS[HAND_SLOTS.length - 1]!;
+    const caption = scene.add
+      .text(lastBonus.x + lastBonus.size / 2 + 20, lastBonus.y, 'НАГРАДЫ', {
+        fontFamily: 'Manrope',
+        fontSize: '24px',
+        color: `#${COLOR_GOLD.toString(16).padStart(6, '0')}`,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0, 0.5)
+      .setAlpha(0.7);
+    this.add(caption);
+
     scene.add.existing(this);
   }
 
