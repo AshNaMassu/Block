@@ -231,9 +231,7 @@ export class BoardView extends Phaser.GameObjects.Container {
             ? BOARD_X + 3.5 * CELL_SIZE
             : BOARD_X + t.index * CELL_SIZE + CELL_SIZE / 2;
         const cy =
-          t.type === 'row'
-            ? BOARD_TOP + t.index * CELL_SIZE - 4
-            : BOARD_TOP + 3.5 * CELL_SIZE;
+          t.type === 'row' ? BOARD_TOP + t.index * CELL_SIZE - 4 : BOARD_TOP + 3.5 * CELL_SIZE;
         const label = this.scene.add
           .text(cx, cy, `+${SCORE_LINE_ELEMENTAL.toLocaleString('ru-RU')} · +1⚡`, {
             fontFamily: FONT_FAMILY,

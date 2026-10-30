@@ -119,15 +119,11 @@ export interface ElementalThread {
 export function findElementalThreads(grid: Grid): ElementalThread[] {
   const threads: ElementalThread[] = [];
   for (let y = 0; y < BOARD_SIZE; y++) {
-    const t = threadInLine(
-      Array.from({ length: BOARD_SIZE }, (_, x) => grid[y]![x]),
-    );
+    const t = threadInLine(Array.from({ length: BOARD_SIZE }, (_, x) => grid[y]![x]));
     if (t) threads.push({ type: 'row', index: y, ...t });
   }
   for (let x = 0; x < BOARD_SIZE; x++) {
-    const t = threadInLine(
-      Array.from({ length: BOARD_SIZE }, (_, y) => grid[y]![x]),
-    );
+    const t = threadInLine(Array.from({ length: BOARD_SIZE }, (_, y) => grid[y]![x]));
     if (t) threads.push({ type: 'column', index: x, ...t });
   }
   return threads;

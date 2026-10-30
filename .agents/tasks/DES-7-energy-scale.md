@@ -25,7 +25,7 @@
 
 ## Шаги
 - [x] 1. Таск-файл создан
-- [ ] 2. layout.ts: перенос шкалы над поле (ENERGY_Y, BOARD_TOP, FURY_Y + докстринги)
+- [x] 2. layout.ts: перенос шкалы над поле (ENERGY_Y=340, BOARD_TOP=430, FURY_Y=1310, BACK_BUTTON_Y=340, ENERGY_OVERFLOW_Y=268; tsc ок)
 - [ ] 3. EnergyView: бледная молния в пустом слоте; координаты слотов наружу (для целей молний)
 - [ ] 4. EnergyBoltFx: текстура-зигзаг + полёт с tint стихии и стагером
 - [ ] 5. EnergyView.showOverflow: пипсы «+N» + подпись «Fury ×M»
@@ -35,8 +35,8 @@
 - [ ] 9. Закрытие: DONE.md, QUEUE.md
 
 ## Чекпоинт
-Последний шаг: 1
-Что сделано: таск-файл создан; контекст изучен (EnergyView, addEnergy, snapshot-порядок gainedElements, CleansingFx, layout); решение зафиксировано
-Что дальше: шаг 2 — перенос шкалы над поле в layout.ts
-Изменённые файлы: .agents/tasks/DES-7-energy-scale.md, .agents/QUEUE.md
+Последний шаг: 2
+Что сделано: шкала перенесена над поле (07c4bef); все потребители констант идут через layout-импорты, коллизий нет (панель поля с 406, бонусный ряд с 1400)
+Что дальше: шаг 3 — EnergyView: бледная молния в пустом слоте + координаты слотов наружу
+Изменённые файлы: game/src/game/layout.ts, .agents/tasks/DES-7-energy-scale.md
 Открытые вопросы: нет

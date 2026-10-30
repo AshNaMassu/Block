@@ -64,8 +64,10 @@ import { loadMeta, updateMetaAfterGame, type PlayerMeta } from '../../platform/s
 import { LineClearFx } from '../fx/LineClearFx';
 import { CleansingFx } from '../fx/CleansingFx';
 import { DetonationFx } from '../fx/DetonationFx';
+import { EnergyBoltFx, type BoltSpec } from '../fx/EnergyBoltFx';
 import { ToastManager, type ToastData } from '../ui/Toast';
 import type { MergeResult } from '../../core/hand';
+import { ENERGY_CAPACITY } from '../../config/balance';
 
 /** Частота тика Fury (мс) — для истечения таймера по timestamp. */
 const FURY_TICK_MS = 200;
@@ -99,6 +101,7 @@ export class GameScene extends Phaser.Scene {
   private lineClearFx!: LineClearFx;
   private cleansingFx!: CleansingFx;
   private detonationFx!: DetonationFx;
+  private boltFx!: EnergyBoltFx;
   private toasts!: ToastManager;
   private debugPanel: DebugPanel | null = null;
 
@@ -131,6 +134,7 @@ export class GameScene extends Phaser.Scene {
     this.lineClearFx = new LineClearFx(this, this.boardView);
     this.cleansingFx = new CleansingFx(this);
     this.detonationFx = new DetonationFx(this, this.boardView);
+    this.boltFx = new EnergyBoltFx(this);
     this.toasts = new ToastManager(this);
 
     // Кнопка «назад в меню».
@@ -236,13 +240,13 @@ export class GameScene extends Phaser.Scene {
 
     if (result.clearedLines.length === 0) {
       this.refreshBoard();
-      this.refreshEnergy();
+      this.playEnergyGain(result, () => {
+        if (!result.gameOver) {
+          this.toasts.showAll(this.buildToasts(result));
+        }
 
-      if (!result.gameOver) {
-        this.toasts.showAll(this.buildToasts(result));
-      }
-
-      this.checkGameOver(result);
+        this.checkGameOver(result);
+      });
       return;
     }
 
@@ -257,30 +261,14 @@ export class GameScene extends Phaser.Scene {
       this.lineClearFx.play(result.clearedLines, () => {
         this.refreshBoard();
 
-        const cleansing = result.cleansing;
-
-        if (cleansing) {
-          // Очищение: вспышка + кольца, затем энергия/радужные/Fury и тосты.
-          this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
-            this.refreshEnergy();
-            this.unlockInput();
-
-            if (!result.gameOver) {
-              this.toasts.showAll(this.buildToasts(result));
-            }
-
-            this.checkGameOver(result);
-          });
-        } else {
-          this.refreshEnergy();
-          this.unlockInput();
-
+        // Молнии энергии → слоты шкалы (или пипсы переполнения → церемония).
+        this.playEnergyGain(result, () => {
           if (!result.gameOver) {
             this.toasts.showAll(this.buildToasts(result));
           }
 
           this.checkGameOver(result);
-        }
+        });
       });
     };
 
@@ -434,6 +422,84 @@ export class GameScene extends Phaser.Scene {
 
     this.energyView.update(state.energy);
     this.furyView.update(state.fury, now);
+  }
+
+  /**
+   * Молнии энергии (DES-7): из мест источников в слоты шкалы, по завершении —
+   * обновление шкалы, разблокировка ввода и продолжение. При Очищении лишние
+   * молнии летят в пипсы переполнения, затем церемония (CleansingFx).
+   */
+  private playEnergyGain(result: PlacementResult, onDone: () => void): void {
+    const cleansing = result.cleansing;
+    const gains = this.collectEnergyGains(result);
+
+    if (gains.length === 0) {
+      this.refreshEnergy();
+      this.unlockInput();
+      onDone();
+      return;
+    }
+
+    this.lockInput();
+
+    // Цель: i-й слот шкалы; лишние заряды (переполнение) — в зону пипсов.
+    const bolts: BoltSpec[] = gains.map((g, i) => ({
+      element: g.element,
+      from: {
+        x: BOARD_X + (g.from.x + 0.5) * CELL_SIZE,
+        y: BOARD_TOP + (g.from.y + 0.5) * CELL_SIZE,
+      },
+      to: i < ENERGY_CAPACITY ? this.energyView.slotCenter(i) : this.energyView.overflowTarget(),
+    }));
+
+    this.boltFx.play(bolts, {
+      onAll: () => {
+        if (cleansing) {
+          // Пипсы «+N» и множитель → вспышка/кольца церемонии → шкала пуста.
+          this.energyView.showOverflow(cleansing.overflow, cleansing.furyMult);
+          this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
+            this.energyView.hideOverflow();
+            this.refreshEnergy();
+            this.unlockInput();
+            onDone();
+          });
+        } else {
+          this.refreshEnergy();
+          this.unlockInput();
+          onDone();
+        }
+      },
+    });
+  }
+
+  /**
+   * Источники энергии хода с координатами (центр области). Порядок повторяет
+   * core (engine.ts: [...detonationEnergy, ...scan.gainedElements]; snapshot.ts:
+   * стихийные линии — строки, затем столбцы). clearedLines приходит в том же
+   * порядке скана, поэтому фильтр isElemental даёт порядок gainedElements.
+   */
+  private collectEnergyGains(result: PlacementResult): { element: ElementId; from: Vec2 }[] {
+    const gains: { element: ElementId; from: Vec2 }[] = [];
+
+    const det = result.detonation;
+    if (det && det.region.length > 0) {
+      const sum = det.region.reduce((a, c) => ({ x: a.x + c.x, y: a.y + c.y }), { x: 0, y: 0 });
+      gains.push({
+        element: det.element,
+        from: { x: sum.x / det.region.length, y: sum.y / det.region.length },
+      });
+    }
+
+    for (const line of result.clearedLines) {
+      if (!line.isElemental || line.element === null) continue;
+      const sum = line.cells.reduce((a, c) => ({ x: a.x + c.x, y: a.y + c.y }), { x: 0, y: 0 });
+      gains.push({
+        element: line.element,
+        from: { x: sum.x / line.cells.length, y: sum.y / line.cells.length },
+      });
+    }
+
+    return gains;
   }
 
   /** Обновить HUD (счёт/рекорд/звёзды/множитель). */

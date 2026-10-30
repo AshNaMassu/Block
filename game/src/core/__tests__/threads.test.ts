@@ -11,17 +11,13 @@ describe('findElementalThreads (DES-6)', () => {
   it('6 клеток одной стихии в строке -> нить natural=6', () => {
     const grid = createGrid();
     for (let x = 0; x < 6; x++) setCell(grid, x, 2, fire());
-    expect(findElementalThreads(grid)).toEqual([
-      { type: 'row', index: 2, element: 0, natural: 6 },
-    ]);
+    expect(findElementalThreads(grid)).toEqual([{ type: 'row', index: 2, element: 0, natural: 6 }]);
   });
 
   it('7 клеток -> нить natural=7; 8 (полная) -> нити нет', () => {
     const grid = createGrid();
     for (let x = 0; x < 7; x++) setCell(grid, x, 0, water());
-    expect(findElementalThreads(grid)).toEqual([
-      { type: 'row', index: 0, element: 1, natural: 7 },
-    ]);
+    expect(findElementalThreads(grid)).toEqual([{ type: 'row', index: 0, element: 1, natural: 7 }]);
     setCell(grid, 7, 0, water());
     expect(findElementalThreads(grid)).toEqual([]);
   });
@@ -30,9 +26,7 @@ describe('findElementalThreads (DES-6)', () => {
     const grid = createGrid();
     for (let x = 0; x < 6; x++) setCell(grid, x, 4, fire());
     setCell(grid, 6, 4, multi());
-    expect(findElementalThreads(grid)).toEqual([
-      { type: 'row', index: 4, element: 0, natural: 6 },
-    ]);
+    expect(findElementalThreads(grid)).toEqual([{ type: 'row', index: 4, element: 0, natural: 6 }]);
   });
 
   it('чужая стихия в линии -> нити нет', () => {

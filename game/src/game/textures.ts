@@ -34,6 +34,9 @@ export const TEX_FX_GLOW = `${TEX_PREFIX}-fx-glow`;
 export const TEX_FX_BEAM = `${TEX_PREFIX}-fx-beam`;
 export const TEX_FX_RING = `${TEX_PREFIX}-fx-ring`;
 
+/** Молния энергии (DES-7): генерируется в EnergyBoltFx.ensureBoltTexture. */
+export const TEX_FX_BOLT = `${TEX_PREFIX}-fx-bolt`;
+
 /** Размер текстуры клетки в px (квадрат, с запасом под обводку). */
 export const TEX_CELL_SIZE = 120;
 
