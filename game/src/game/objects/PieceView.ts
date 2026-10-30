@@ -34,6 +34,7 @@ export class PieceView extends Phaser.GameObjects.Container {
   readonly pieceId: string;
   readonly slotSize: number;
   private selectedMarker: Phaser.GameObjects.Graphics | null = null;
+  private linkedMarker: Phaser.GameObjects.Container | null = null;
 
   constructor(scene: Phaser.Scene, piece: Piece, slotSize: number) {
     super(scene, 0, 0);
@@ -48,6 +49,7 @@ export class PieceView extends Phaser.GameObjects.Container {
   renderPiece(piece: Piece): void {
     this.removeAll(true);
     this.selectedMarker = null;
+    this.linkedMarker = null;
 
     const cells = piece.shape;
     const minX = Math.min(...cells.map((c) => c.x));
@@ -165,6 +167,65 @@ export class PieceView extends Phaser.GameObjects.Container {
       yoyo: true,
       repeat: -1,
       ease: 'Sine.InOut',
+    });
+  }
+
+  /**
+   * Значок связи (DES-11, DESIGN §14): маленький золотой кружок «⇄» в углу —
+   * «есть парная спецфигура, тап → тап = мердж».
+   */
+  setLinked(linked: boolean): void {
+    if (this.linkedMarker) {
+      this.linkedMarker.destroy();
+      this.linkedMarker = null;
+    }
+    if (!linked) return;
+
+    const g = this.scene.add.graphics();
+    g.fillStyle(0x060a13, 0.9);
+    g.fillCircle(this.slotSize / 2 - 18, -this.slotSize / 2 + 18, 22);
+    g.lineStyle(3, COLOR_GOLD, 1);
+    g.strokeCircle(this.slotSize / 2 - 18, -this.slotSize / 2 + 18, 22);
+    const badge = this.scene.add
+      .text(this.slotSize / 2 - 18, -this.slotSize / 2 + 18, '⇄', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '26px',
+        color: `#${COLOR_GOLD.toString(16).padStart(6, '0')}`,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5);
+    const marker = this.scene.add.container(0, 0, [g, badge]);
+    this.add(marker);
+    this.linkedMarker = marker;
+  }
+
+  /** Пульс парной фигуры при выборе (DES-11: «вторая фигура мягко пульсирует»). */
+  setPulsing(pulsing: boolean): void {
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(1);
+    if (!pulsing) return;
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 420,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+  }
+
+  /** Лёгкая тряска при неверном тапе (DES-11: «нужна такая же фигура»). */
+  shake(): void {
+    this.scene.tweens.killTweensOf(this);
+    this.scene.tweens.add({
+      targets: this,
+      x: { from: this.x - 9, to: this.x },
+      duration: 60,
+      yoyo: true,
+      repeat: 2,
+      ease: 'Sine.InOut',
+      onComplete: () => this.setScale(1),
     });
   }
 }

@@ -155,6 +155,15 @@ export class GameScene extends Phaser.Scene {
       handView: this.handView,
       onPlaced: (result, piece) => this.afterMove(result, piece),
       onMerged: (result) => this.afterMerge(result),
+      onMergeHint: () =>
+        this.toasts.showAll([
+          {
+            title: 'Нужна такая же фигура',
+            subtitle: 'Тапните по парной спецфигуре — они сольются',
+            accent: COLOR_GOLD,
+            big: false,
+          },
+        ]),
     });
 
     // Единый обработчик pointerdown: спец-режим имеет приоритет.
@@ -422,11 +431,7 @@ export class GameScene extends Phaser.Scene {
 
     // Карточка: эмодзи детонатора на золотом свечении.
     const emoji = SPECIAL_LABELS[type].split(' ')[0]!;
-    const glow = this.add
-      .image(cx, cy, TEX_FX_GLOW)
-      .setDepth(254)
-      .setTint(COLOR_GOLD)
-      .setScale(3);
+    const glow = this.add.image(cx, cy, TEX_FX_GLOW).setDepth(254).setTint(COLOR_GOLD).setScale(3);
     const card = this.add
       .text(cx, cy, emoji, { fontFamily: FONT_FAMILY, fontSize: '84px' })
       .setOrigin(0.5)
@@ -485,6 +490,7 @@ export class GameScene extends Phaser.Scene {
   /** Обновить руку. */
   private refreshHand(): void {
     this.handView.update(this.engine.state.hand);
+    this.handView.updateMergeBadges(this.engine.state.hand);
   }
 
   /** Обновить энергию и Fury-индикатор. */

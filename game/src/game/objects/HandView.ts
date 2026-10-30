@@ -17,6 +17,7 @@ import { PieceView } from './PieceView';
 export class HandView extends Phaser.GameObjects.Container {
   private readonly slots: Phaser.GameObjects.Container[] = [];
   private readonly pieceViews = new Map<string, PieceView>();
+  private mergeArc: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: Phaser.Scene) {
     super(scene, 0, 0);
@@ -81,6 +82,61 @@ export class HandView extends Phaser.GameObjects.Container {
   /** Получить все PieceView (для ввода). */
   getPieceViews(): PieceView[] {
     return [...this.pieceViews.values()];
+  }
+
+  /**
+   * Значки связи на парных спецфигурах (DES-11, DESIGN §14): у каждой фигуры,
+   * для которой в руке есть пара того же типа, — золотой значок «⇄».
+   * Вызывать после update(hand).
+   */
+  updateMergeBadges(hand: Hand): void {
+    const counts = new Map<string, number>();
+    hand.forEach((piece) => {
+      if (!piece || piece.kind !== 'special') return;
+      const type = piece.special as string;
+      counts.set(type, (counts.get(type) ?? 0) + 1);
+    });
+
+    hand.forEach((piece) => {
+      if (!piece || piece.kind !== 'special') return;
+      const view = this.pieceViews.get(piece.id);
+      if (view) view.setLinked((counts.get(piece.special as string) ?? 0) > 1);
+    });
+  }
+
+  /** Пульсирующая дуга между выбранной спецфигурой и её парой (DES-11). */
+  showMergeArc(fromId: string, toId: string): void {
+    this.clearMergeArc();
+    const a = this.pieceViews.get(fromId);
+    const b = this.pieceViews.get(toId);
+    if (!a || !b) return;
+
+    const g = this.scene.add.graphics();
+    g.lineStyle(4, COLOR_GOLD, 0.85);
+    g.beginPath();
+    g.moveTo(a.x, a.y - a.slotSize * 0.45);
+    g.lineTo(b.x, b.y - b.slotSize * 0.45);
+    g.strokePath();
+    this.addAt(g, 0);
+    this.mergeArc = g;
+
+    this.scene.tweens.add({
+      targets: g,
+      alpha: { from: 0.9, to: 0.35 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+  }
+
+  /** Снять дугу связи. */
+  clearMergeArc(): void {
+    if (this.mergeArc) {
+      this.scene.tweens.killTweensOf(this.mergeArc);
+      this.mergeArc.destroy();
+      this.mergeArc = null;
+    }
   }
 
   /** Позиция слота по индексу (для возврата при отмене drag). */

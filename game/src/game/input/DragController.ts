@@ -17,7 +17,7 @@
  */
 import type Phaser from 'phaser';
 import type { GameEngine } from '../../core/engine';
-import type { LineOrientation, Piece, PlacementResult } from '../../core/types';
+import type { LineOrientation, Piece, PlacementResult, SpecialType } from '../../core/types';
 import { getShapeCells } from '../../core/shapes';
 import { specialShape } from '../../core/specials';
 import { mergeSpecialPieces, type MergeResult } from '../../core/hand';
@@ -48,6 +48,8 @@ export interface DragControllerDeps {
   onPlaced: (result: PlacementResult, piece: Piece) => void;
   /** Колбэк после успешного мерджа двух спецфигур в руке. */
   onMerged: (result: MergeResult) => void;
+  /** Подсказка «нужна такая же фигура» при тапе по другой спецфигуре (DES-11). */
+  onMergeHint: () => void;
 }
 
 export class DragController {
@@ -233,9 +235,9 @@ export class DragController {
 
     const selected = this.findPieceInHand(this.selectedPieceId);
     if (!selected || selected.kind !== 'special' || selected.special !== piece.special) {
-      // Другой тип — переносим выделение.
-      this.clearSelection();
-      this.selectPiece(piece.id);
+      // Другой тип — лёгкая тряска + подсказка (DES-11, DESIGN §14), выделение остаётся.
+      this.deps.handView.getPieceView(piece.id)?.shake();
+      this.deps.onMergeHint();
       return;
     }
 
@@ -248,12 +250,32 @@ export class DragController {
   private selectPiece(pieceId: string): void {
     this.selectedPieceId = pieceId;
     this.deps.handView.getPieceView(pieceId)?.setSelected(true);
+
+    // Пара того же типа: пульс + дуга связи (DES-11).
+    const selected = this.findPieceInHand(pieceId);
+    if (!selected || selected.kind !== 'special') return;
+    const partner = this.findMergePartner(pieceId, selected.special!);
+    if (!partner) return;
+    this.deps.handView.getPieceView(partner.id)?.setPulsing(true);
+    this.deps.handView.showMergeArc(pieceId, partner.id);
+  }
+
+  /** Найти в руке вторую спецфигуру того же типа (для связи/мерджа). */
+  private findMergePartner(pieceId: string, special: SpecialType): Piece | null {
+    let partner: Piece | null = null;
+    this.deps.engine.state.hand.forEach((p) => {
+      if (p && p.id !== pieceId && p.kind === 'special' && p.special === special) partner = p;
+    });
+    return partner;
   }
 
   private clearSelection(): void {
     if (this.selectedPieceId === null) return;
     this.deps.handView.getPieceView(this.selectedPieceId)?.setSelected(false);
     this.selectedPieceId = null;
+    // Снять пульс пары и дугу (DES-11).
+    this.deps.handView.clearMergeArc();
+    for (const view of this.deps.handView.getPieceViews()) view.setPulsing(false);
   }
 
   // ─── Вспомогательные ────────────────────────────────────────────────────
