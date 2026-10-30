@@ -45,9 +45,11 @@ import {
   DESIGN_WIDTH,
   BACK_BUTTON_X,
   BACK_BUTTON_Y,
+  BOARD_PIXEL_SIZE,
   BOARD_TOP,
   BOARD_X,
   CELL_SIZE,
+  HAND_SLOTS,
 } from '../layout';
 import { BoardView } from '../objects/BoardView';
 import { HandView } from '../objects/HandView';
@@ -68,6 +70,7 @@ import { EnergyBoltFx, type BoltSpec } from '../fx/EnergyBoltFx';
 import { ToastManager, type ToastData } from '../ui/Toast';
 import type { MergeResult } from '../../core/hand';
 import { ENERGY_CAPACITY } from '../../config/balance';
+import { TEX_FX_GLOW } from '../textures';
 
 /** Частота тика Fury (мс) — для истечения таймера по timestamp. */
 const FURY_TICK_MS = 200;
@@ -258,6 +261,11 @@ export class GameScene extends Phaser.Scene {
 
     // Детонация спецфигуры: вспышки разрушения/следа, затем линии/очищение.
     const startLineClear = () => {
+      // Комбо-награда (DES-10): бейдж в центре поля, карточка летит в бонусный слот.
+      if (result.combo && result.specialAdded) {
+        this.flyComboReward(result.specialAdded.type, result.combo.lines);
+      }
+
       this.lineClearFx.play(result.clearedLines, () => {
         this.refreshBoard();
 
@@ -380,6 +388,70 @@ export class GameScene extends Phaser.Scene {
   /** Человекочитаемое имя детонатора для тостов. */
   private specialLabel(type: SpecialType): string {
     return SPECIAL_LABELS[type];
+  }
+
+  /**
+   * Комбо-награда (DES-10, DESIGN §13): крупный бейдж «КОМБО ×N» в центре поля,
+   * из места очистки вылетает карточка спецфигуры и летит в бонусный слот.
+   */
+  private flyComboReward(type: SpecialType, lines: number): void {
+    const cx = BOARD_X + BOARD_PIXEL_SIZE / 2;
+    const cy = BOARD_TOP + BOARD_PIXEL_SIZE / 2;
+
+    const badge = this.add
+      .text(cx, cy - 140, `КОМБО ×${lines}`, {
+        fontFamily: FONT_FAMILY,
+        fontSize: '76px',
+        color: `#${COLOR_GOLD.toString(16).padStart(6, '0')}`,
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
+      .setDepth(255)
+      .setScale(0.4)
+      .setAlpha(0);
+    this.tweens.add({ targets: badge, scale: 1, alpha: 1, duration: 320, ease: 'Back.Out' });
+    this.tweens.add({
+      targets: badge,
+      alpha: 0,
+      scale: 1.12,
+      duration: 300,
+      delay: 850,
+      ease: 'Quad.In',
+      onComplete: () => badge.destroy(),
+    });
+
+    // Карточка: эмодзи детонатора на золотом свечении.
+    const emoji = SPECIAL_LABELS[type].split(' ')[0]!;
+    const glow = this.add
+      .image(cx, cy, TEX_FX_GLOW)
+      .setDepth(254)
+      .setTint(COLOR_GOLD)
+      .setScale(3);
+    const card = this.add
+      .text(cx, cy, emoji, { fontFamily: FONT_FAMILY, fontSize: '84px' })
+      .setOrigin(0.5)
+      .setDepth(255);
+    const target = HAND_SLOTS[3]!;
+    this.tweens.add({
+      targets: [glow, card],
+      x: target.x,
+      y: target.y,
+      scale: 0.45,
+      duration: 640,
+      delay: 380,
+      ease: 'Cubic.EaseIn',
+      onComplete: () => {
+        this.tweens.add({
+          targets: [glow, card],
+          alpha: 0,
+          duration: 220,
+          onComplete: () => {
+            glow.destroy();
+            card.destroy();
+          },
+        });
+      },
+    });
   }
 
   /** Блокировка ввода на время анимаций. */

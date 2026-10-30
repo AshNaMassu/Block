@@ -9,7 +9,6 @@
  */
 import type Phaser from 'phaser';
 import type { LineInfo } from '../../core/types';
-import { BOARD_SIZE } from '../../config/balance';
 import { BOARD_PIXEL_SIZE, BOARD_TOP, BOARD_X, CELL_SIZE } from '../layout';
 import { COLOR_MULTI, ELEMENT_COLORS } from '../../config/elements';
 import { TEX_FX_BEAM, TEX_FX_GLOW } from '../textures';
@@ -42,40 +41,45 @@ export class LineClearFx {
       return;
     }
 
-    // Собираем уникальные клетки, чтобы не анимировать пересечения дважды.
-    const unique = this.uniqueCells(lines);
+    // Очередь очистки (DESIGN §13): линии уходят не одновременно, а с шагом
+    // ~110 мс — каждая линия читается, комбо набирает темп.
+    const LINE_STEP_MS = 110;
 
-    // Тушим сами клетки поля (fill внутри CellView).
+    // Тушим сами клетки поля (fill внутри CellView), с задержкой по линии.
     const fills: { img: Phaser.GameObjects.Image; sx: number; sy: number }[] = [];
 
-    for (const c of unique) {
-      const cell = this.boardView.getCell(c.x, c.y);
-      if (!cell) continue;
+    for (const line of lines) {
+      const lineIndex = lines.indexOf(line);
+      for (const c of line.cells) {
+        const cell = this.boardView.getCell(c.x, c.y);
+        if (!cell) continue;
 
-      const img = cell.getFill();
-      if (!img.visible) continue;
+        const img = cell.getFill();
+        if (!img.visible) continue;
 
-      fills.push({ img, sx: img.scaleX, sy: img.scaleY });
+        fills.push({ img, sx: img.scaleX, sy: img.scaleY });
 
-      this.scene.tweens.add({
-        targets: img,
-        alpha: 0,
-        scaleX: img.scaleX * 1.25,
-        scaleY: img.scaleY * 1.25,
-        duration: 240,
-        ease: 'Quad.Out',
-      });
+        this.scene.tweens.add({
+          targets: img,
+          alpha: 0,
+          scaleX: img.scaleX * 1.25,
+          scaleY: img.scaleY * 1.25,
+          duration: 240,
+          delay: lineIndex * LINE_STEP_MS,
+          ease: 'Quad.Out',
+        });
+      }
     }
 
-    // Beam и вспышки по каждой линии.
+    // Beam и вспышки по каждой линии (в той же очереди).
     lines.forEach((line, index) => {
-      const delay = index * 70;
+      const delay = index * LINE_STEP_MS;
       this.playBeam(line, delay);
       this.playBursts(line, delay);
     });
 
-    // Общий таймер завершения.
-    const total = 750 + lines.length * 70;
+    // Общий таймер завершения: последняя линия + её анимация.
+    const total = 750 + lines.length * LINE_STEP_MS;
 
     this.scene.time.delayedCall(total, () => {
       // Возвращаем fill-клеткам исходный вид перед BoardView.update().
@@ -177,25 +181,6 @@ export class LineClearFx {
     }
 
     return COLOR_MULTI;
-  }
-
-  /** Уникальные клетки из всех линий (дедупликация пересечений). */
-  private uniqueCells(lines: LineInfo[]): { x: number; y: number }[] {
-    const seen = new Set<number>();
-    const out: { x: number; y: number }[] = [];
-
-    for (const line of lines) {
-      for (const c of line.cells) {
-        const key = c.y * BOARD_SIZE + c.x;
-
-        if (!seen.has(key)) {
-          seen.add(key);
-          out.push({ x: c.x, y: c.y });
-        }
-      }
-    }
-
-    return out;
   }
 
   /**
