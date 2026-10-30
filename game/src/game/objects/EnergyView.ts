@@ -13,7 +13,7 @@
  * множитель «Fury ×M» над шкалой на время церемонии Очищения.
  */
 import Phaser from 'phaser';
-import type { EnergyState } from '../../core/types';
+import type { ElementId, EnergyState } from '../../core/types';
 import {
   COLOR_CELL_EMPTY,
   COLOR_GRID,
@@ -100,6 +100,50 @@ export class EnergyView extends Phaser.GameObjects.Container {
   /** Зона пипсов переполнения над шкалой (цель для лишних молний). */
   overflowTarget(): { x: number; y: number } {
     return { x: DESIGN_WIDTH / 2, y: ENERGY_OVERFLOW_Y };
+  }
+
+  /**
+   * Праздничное схлопывание слотов в центр (DES-8, DESIGN §11 «Момент Очищения»):
+   * все три слота мгновенно заполняются стихией Очищения, держатся мгновение и
+   * съезжаются в центр шкалы, гаснут. После onDone состояние слотов сброшено
+   * (вызывающий сделает refreshEnergy — пустые молнии вернутся).
+   */
+  celebrateCollapse(element: ElementId, onDone: () => void): void {
+    const centerX = energySlotX(1, ENERGY_CAPACITY);
+
+    this.fills.forEach((fill, i) => {
+      fill.setTexture(cellTextureKey(element));
+      fill.setVisible(true);
+      fill.setAlpha(1);
+      fill.setScale(this.fillScale);
+      fill.x = 0;
+      fill.y = 0;
+      this.emptyBolts[i]!.setVisible(false);
+    });
+
+    this.scene.time.delayedCall(280, () => {
+      let pending = this.fills.length;
+      this.fills.forEach((fill, i) => {
+        this.scene.tweens.add({
+          targets: fill,
+          x: centerX - energySlotX(i, ENERGY_CAPACITY),
+          scaleX: 0,
+          scaleY: 0,
+          alpha: 0,
+          duration: 380,
+          delay: i * 60,
+          ease: 'Quad.In',
+          onComplete: () => {
+            fill.setVisible(false);
+            fill.setAlpha(1);
+            fill.setScale(this.fillScale);
+            fill.x = 0;
+            fill.y = 0;
+            if (--pending === 0) onDone();
+          },
+        });
+      });
+    });
   }
 
   /** Обновить слоты из состояния Энергии (с анимациями появления/потребления). */

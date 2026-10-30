@@ -455,14 +455,25 @@ export class GameScene extends Phaser.Scene {
     this.boltFx.play(bolts, {
       onAll: () => {
         if (cleansing) {
-          // Пипсы «+N» и множитель → вспышка/кольца церемонии → шкала пуста.
+          // Пипсы «+N» и множитель → церемония (DES-8): вспышка, схлопывание
+          // слотов, «ОЧИЩЕНИЕ», звезда в счётчик, радуга в бонусные слоты.
           this.energyView.showOverflow(cleansing.overflow, cleansing.furyMult);
-          this.cleansingFx.play(cleansing.element, cleansing.overflow, cleansing.isPure, () => {
-            this.energyView.hideOverflow();
-            this.refreshEnergy();
-            this.unlockInput();
-            onDone();
-          });
+          this.cleansingFx.play(
+            cleansing.element,
+            cleansing.overflow,
+            cleansing.isPure,
+            () => {
+              this.energyView.hideOverflow();
+              this.refreshEnergy();
+              this.unlockInput();
+              onDone();
+            },
+            {
+              onPeak: () => this.energyView.celebrateCollapse(cleansing.element, () => {}),
+              stars: result.starsGained,
+              rainbows: result.rainbowAdded,
+            },
+          );
         } else {
           this.refreshEnergy();
           this.unlockInput();
