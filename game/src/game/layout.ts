@@ -5,11 +5,11 @@
  * Поле 8×8 занимает центральную зону, HUD сверху, рука снизу.
  * Бонусные слоты руки (3..5) визуально отделены от обычных (0..2).
  *
- * Раскладка (сверху вниз):
+ * Раскладка (DESIGN-neon-alchemy §3 — шкала Энергии НАД полем):
  *   0..280   HUD (score/best, stars+multiplier)
- *   300..1260  Поле 8×8 (клетка 120px, поле 960px, левый отступ 60px)
- *   1280..1400 Energy (3 слота стихий) + Fury-индикатор сверху
- *   1430..1550 Бонусные слоты руки (3 × ~180px, золотая рамка)
+ *   290..390   Energy (3 слота стихий) + пипсы переполнения сверху
+ *   430..1390  Поле 8×8 (клетка 120px, поле 960px, левый отступ 60px)
+ *   1400..1580 Бонусные слоты руки (3 × ~180px, золотая рамка)
  *   1600..1900 Обычные слоты руки (3 × ~300px)
  */
 import { BOARD_SIZE, HAND_NORMAL_SIZE, HAND_SIZE } from '../config/balance';
@@ -32,8 +32,8 @@ export const CELL_RADIUS = 16;
 /** Левый отступ поля. */
 export const BOARD_X = 60;
 
-/** Верхний отступ поля (под HUD). */
-export const BOARD_TOP = 300;
+/** Верхний отступ поля (под шкалой Энергии, DESIGN §3). */
+export const BOARD_TOP = 430;
 
 /** Размер поля в px (8 × 120). */
 export const BOARD_PIXEL_SIZE = BOARD_SIZE * CELL_SIZE;
@@ -122,11 +122,11 @@ export const HUD_STARS_X = DESIGN_WIDTH / 2;
 export const HUD_STARS_Y = 90;
 export const HUD_MULTIPLIER_Y = 200;
 
-/** Позиция кнопки «назад в меню» (левый верх поля). */
+/** Позиция кнопки «назад в меню» (левый верх, в ряд со шкалой Энергии). */
 export const BACK_BUTTON_X = 80;
-export const BACK_BUTTON_Y = 220;
+export const BACK_BUTTON_Y = 340;
 
-// ─── Energy (шкала 3 слотов стихий) ──────────────────────────────────────────
+// ─── Energy (шкала 3 слотов стихий, НАД полем — DESIGN §3) ───────────────────
 
 /** Размер слота Энергии (квадрат). */
 export const ENERGY_SLOT_SIZE = 100;
@@ -134,8 +134,11 @@ export const ENERGY_SLOT_SIZE = 100;
 /** Зазор между слотами Энергии. */
 export const ENERGY_GAP = 24;
 
-/** Центр ряда Энергии по Y (под полем). */
-export const ENERGY_Y = 1340;
+/** Центр ряда Энергии по Y (над полем, между HUD и полем). */
+export const ENERGY_Y = 340;
+
+/** Y пипсов переполнения над слотами («+1/+2» — DESIGN §11). */
+export const ENERGY_OVERFLOW_Y = 268;
 
 /** Ширина ряда из N слотов с зазорами. */
 export function energyRowWidth(count: number): number {
@@ -151,6 +154,6 @@ export function energySlotX(i: number, total: number): number {
 
 // ─── Fury ────────────────────────────────────────────────────────────────────
 
-/** Позиция индикатора Fury (по центру, над рядом Энергии). */
+/** Позиция индикатора Fury (чип на нижней кромке поля). */
 export const FURY_X = DESIGN_WIDTH / 2;
-export const FURY_Y = 1230;
+export const FURY_Y = 1310;
