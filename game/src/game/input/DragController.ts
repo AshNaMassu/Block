@@ -68,6 +68,9 @@ export class DragController {
   // Мердж в руке: выделенная спецфигура (по id).
   private selectedPieceId: string | null = null;
 
+  // Тап-режим постановки (DES-14): выбранная тапом фигура (обычная/радужная).
+  private tapPieceId: string | null = null;
+
   constructor(deps: DragControllerDeps) {
     this.deps = deps;
     const { scene } = deps;
@@ -95,6 +98,7 @@ export class DragController {
     this.pointerStartX = pointer.x;
     this.pointerStartY = pointer.y;
     this.isDragging = false;
+    this.clearTapSelect();
     this.orientation = piece.orientation ?? 'row';
     this.trail = [];
     this.dragCopy = this.createDragCopy(piece, pointer);
@@ -193,11 +197,22 @@ export class DragController {
       return;
     }
 
-    // Не перешли порог — тап: у спецфигур это мердж-выделение.
+    // Не перешли порог — тап: у спецфигур мердж-выделение, у остальных
+    // тап-режим постановки (DES-14): тап выбирает, тап по полю ставит.
     if (!this.isDragging) {
       const piece = this.draggingPiece;
       this.cleanup();
-      if (piece.kind === 'special') this.handleSpecialTap(piece);
+      if (piece.kind === 'special') {
+        this.handleSpecialTap(piece);
+        return;
+      }
+      if (this.tapPieceId === piece.id) {
+        this.clearTapSelect();
+        return;
+      }
+      this.clearTapSelect();
+      this.tapPieceId = piece.id;
+      this.deps.handView.getPieceView(piece.id)?.setSelected(true);
       return;
     }
 
@@ -212,8 +227,85 @@ export class DragController {
       if (placed) this.deps.onPlaced(result, piece);
     }
 
-    if (!placed) this.animateReturn();
+    if (!placed) {
+      // Ошибка постановки (DES-14): красная подсветка цели + лёгкая тряска.
+      if (target) this.indicateInvalid(getShapeCells(this.effectiveShape(), target));
+      this.animateReturn();
+    }
     this.cleanup();
+  }
+
+  /**
+   * Постановка тапом по полю (DES-14, доступность): вызывается GameScene, когда
+   * тап пришёлся не на фигуру руки, а в тап-режиме выбрана фигура.
+   * Ставит фигуру левым-верхним углом в тапнутую клетку; при ошибке — подсветка.
+   */
+  handleBoardTap(pointer: Phaser.Input.Pointer): void {
+    if (this.tapPieceId === null) return;
+    const piece = this.findPieceInHand(this.tapPieceId);
+    if (!piece) {
+      this.clearTapSelect();
+      return;
+    }
+
+    const cx = Math.floor((pointer.x - BOARD_X) / CELL_SIZE);
+    const cy = Math.floor((pointer.y - BOARD_TOP) / CELL_SIZE);
+    if (cx < 0 || cx >= 8 || cy < 0 || cy >= 8) return;
+
+    const shape = this.effectiveShapeFor(piece);
+    const minX = Math.min(...shape.map((c) => c.x));
+    const minY = Math.min(...shape.map((c) => c.y));
+    // Ставим так, чтобы bounding box фигуры начался в тапнутой клетке.
+    const origin = { x: cx - minX, y: cy - minY };
+    const cells = getShapeCells(shape, origin);
+
+    if (this.deps.engine.canPlacePiece(piece.id, origin, this.orientation)) {
+      const result = this.deps.engine.placePiece(piece.id, origin, this.orientation);
+      if (result.ok) {
+        this.clearTapSelect();
+        this.deps.onPlaced(result, piece);
+        return;
+      }
+    }
+    this.indicateInvalid(cells);
+  }
+
+  /** Фигура в тап-режиме (для GameScene). */
+  get tapSelectedId(): string | null {
+    return this.tapPieceId;
+  }
+
+  /** Снять тап-выделение (без дуги мерджа). */
+  clearTapSelect(): void {
+    if (this.tapPieceId !== null) {
+      this.deps.handView.getPieceView(this.tapPieceId)?.setSelected(false);
+      this.tapPieceId = null;
+    }
+  }
+
+  /** Красная подсветка клеток + тряска (DES-14). */
+  private indicateInvalid(target: { x: number; y: number }[]): void {
+    const { scene } = this.deps;
+    const g = scene.add.graphics().setDepth(230);
+    g.fillStyle(0xff4d6d, 0.4);
+    for (const { x, y } of target) {
+      g.fillRoundedRect(
+        BOARD_X + x * CELL_SIZE + 3,
+        BOARD_TOP + y * CELL_SIZE + 3,
+        CELL_SIZE - 6,
+        CELL_SIZE - 6,
+        12,
+      );
+    }
+    scene.tweens.add({
+      targets: g,
+      alpha: 0,
+      duration: 340,
+      delay: 160,
+      ease: 'Quad.In',
+      onComplete: () => g.destroy(),
+    });
+    if (scene.registry.get('reducedFx') !== true) scene.cameras.main.shake(140, 0.004);
   }
 
   // ─── Мердж в руке (гибрид B) ────────────────────────────────────────────
@@ -282,7 +374,11 @@ export class DragController {
 
   /** Форма перетаскиваемой фигуры с учётом ориентации Прилива. */
   private effectiveShape(): { x: number; y: number }[] {
-    const piece = this.draggingPiece!;
+    return this.effectiveShapeFor(this.draggingPiece!);
+  }
+
+  /** Клетки фигуры с учётом ориентации Прилива. */
+  private effectiveShapeFor(piece: Piece): { x: number; y: number }[] {
     if (piece.kind === 'special') return specialShape(piece.special!, this.orientation);
     return piece.shape;
   }
@@ -330,6 +426,7 @@ export class DragController {
     this.originSlotIndex = -1;
     this.isDragging = false;
     this.trail = [];
+    this.clearTapSelect();
   }
 
   private animateReturn(): void {

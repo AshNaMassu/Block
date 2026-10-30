@@ -66,6 +66,8 @@ export class CleansingFx {
     const color = isPure ? COLOR_GOLD : baseColor;
     const cx = BOARD_X + BOARD_PIXEL_SIZE / 2;
     const cy = BOARD_TOP + BOARD_PIXEL_SIZE / 2;
+    // Снижение эффектов (DES-14): без затемнения, слабая вспышка, без тряски.
+    const reduced = this.scene.registry.get('reducedFx') === true;
 
     // Фаза 1a. Лёгкое затемнение экрана (держится до финала церемонии).
     const dim = this.scene.add
@@ -73,7 +75,12 @@ export class CleansingFx {
       .setOrigin(0)
       .setDepth(240)
       .setAlpha(0);
-    this.scene.tweens.add({ targets: dim, alpha: 0.45, duration: 250, ease: 'Quad.Out' });
+    this.scene.tweens.add({
+      targets: dim,
+      alpha: reduced ? 0.18 : 0.45,
+      duration: 250,
+      ease: 'Quad.Out',
+    });
 
     // Фаза 1b. Полноэкранная вспышка.
     const flash = this.scene.add
@@ -84,7 +91,7 @@ export class CleansingFx {
 
     this.scene.tweens.add({
       targets: flash,
-      alpha: 0.4,
+      alpha: reduced ? 0.15 : 0.4,
       duration: 130,
       yoyo: true,
       hold: 90,
@@ -94,7 +101,7 @@ export class CleansingFx {
     this.scene.time.delayedCall(130, () => opts.onPeak?.());
 
     // Лёгкая тряска экрана.
-    this.scene.cameras.main.shake(260, 0.006);
+    if (!reduced) this.scene.cameras.main.shake(260, 0.006);
 
     // Фаза 2. Концентрические круги: число = 1 + overflow (GDD-2 §13).
     const ringCount = 1 + Math.max(0, Math.min(overflow, 5));

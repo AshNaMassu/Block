@@ -134,3 +134,17 @@ export function markHintShown(id: string): void {
     // ignore — best-effort
   }
 }
+
+// ─── Снижение эффектов (DES-14, доступность) ────────────────────────────────
+
+const KEY_REDUCED_FX = 'elemental_blast_reduced_fx';
+
+/** Включено ли снижение эффектов (меньше трясок и вспышек). */
+export function loadReducedFx(): boolean {
+  return readNumber(KEY_REDUCED_FX) === 1;
+}
+
+/** Запомнить настройку снижения эффектов. */
+export function saveReducedFx(reduced: boolean): void {
+  writeNumber(KEY_REDUCED_FX, reduced ? 1 : 0);
+}

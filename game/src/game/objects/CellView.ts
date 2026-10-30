@@ -6,15 +6,19 @@
  * Cell|null.
  */
 import Phaser from 'phaser';
-import { COLOR_CELL_EMPTY, COLOR_GRID, darken, lighten } from '../../config/elements';
+import { COLOR_CELL_EMPTY, COLOR_GRID, darken, lighten, FONT_FAMILY } from '../../config/elements';
 import { CELL_RADIUS } from '../layout';
 import { TEX_CELL_SIZE, TEX_MULTI, cellTextureKey } from '../textures';
 import type { Cell } from '../../core/types';
+
+/** Символы стихий для доступности (DES-14, DESIGN §26): мелкий эмодзи в углу клетки. */
+const ELEMENT_SYMBOLS = ['🔥', '💧', '🌿', '💨'];
 
 export class CellView extends Phaser.GameObjects.Container {
   readonly gx: number;
   readonly gy: number;
   private readonly fill: Phaser.GameObjects.Image;
+  private readonly symbol: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, gx: number, gy: number, x: number, y: number) {
     super(scene, x, y);
@@ -58,6 +62,16 @@ export class CellView extends Phaser.GameObjects.Container {
       .setDisplaySize(TEX_CELL_SIZE, TEX_CELL_SIZE);
     this.add(this.fill);
 
+    // Символ стихии в углу (дальтоникам; multi — 🌈).
+    this.symbol = scene.add
+      .text(TEX_CELL_SIZE / 2 - 10, -TEX_CELL_SIZE / 2 + 8, '', {
+        fontFamily: FONT_FAMILY,
+        fontSize: '30px',
+      })
+      .setOrigin(1, 0)
+      .setAlpha(0.85)
+      .setVisible(false);
+    this.add(this.symbol);
     scene.add.existing(this);
   }
 
@@ -65,11 +79,14 @@ export class CellView extends Phaser.GameObjects.Container {
   updateCell(cell: Cell | null): void {
     if (cell === null) {
       this.fill.setVisible(false);
+      this.symbol.setVisible(false);
       return;
     }
     // multi-клетка (element = -1) — своя текстура; обычная — по element.
     this.fill.setTexture(cell.multi ? TEX_MULTI : cellTextureKey(cell.element));
     this.fill.setVisible(true);
+    this.symbol.setText(cell.multi ? '🌈' : (ELEMENT_SYMBOLS[cell.element] ?? ''));
+    this.symbol.setVisible(true);
   }
 
   /** Доступ к image-заливке (для анимаций в Milestone 3). */

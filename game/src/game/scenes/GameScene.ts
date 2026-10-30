@@ -64,6 +64,7 @@ import { applyDebugPreset } from '../debug/presets';
 import { DebugPanel } from '../debug/DebugPanel';
 import {
   loadMeta,
+  loadReducedFx,
   loadShownHints,
   markHintShown,
   updateMetaAfterGame,
@@ -128,6 +129,7 @@ export class GameScene extends Phaser.Scene {
     this.engine.startGame();
     this.meta = (this.registry.get(REG_META) as PlayerMeta | undefined) ?? loadMeta();
     this.shownHints = new Set(loadShownHints());
+    this.registry.set('reducedFx', loadReducedFx());
 
     // Дебаг: пресет или песочница (только из DebugHubScene).
     const debugPreset = this.registry.get(REG_DEBUG_PRESET) as string | undefined;
@@ -222,7 +224,10 @@ export class GameScene extends Phaser.Scene {
         return;
       }
     }
-    this.drag.tryStartDrag(pointer);
+    if (!this.drag.tryStartDrag(pointer)) {
+      // Тап-режим постановки (DES-14): фигура выбрана тапом — тап по полю ставит.
+      this.drag.handleBoardTap(pointer);
+    }
   }
 
   /** Клетка поля под указателем (или null вне поля). */

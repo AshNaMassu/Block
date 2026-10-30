@@ -23,7 +23,7 @@ import {
   FONT_FAMILY,
 } from '../../config/elements';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '../layout';
-import { loadMeta, type PlayerMeta } from '../../platform/storage';
+import { loadMeta, loadReducedFx, saveReducedFx, type PlayerMeta } from '../../platform/storage';
 import { currentMultiplier } from '../../core/fury';
 import { Button } from '../ui/Button';
 
@@ -102,6 +102,25 @@ export class MenuScene extends Phaser.Scene {
 
     // Дебаг-хаб: только в dev-сборке.
     if (import.meta.env.DEV) {
+      // Тумблер снижения эффектов (DES-14, доступность).
+      const fxButton = new Button(
+        this,
+        DESIGN_WIDTH / 2,
+        1680,
+        '',
+        () => {
+          const next = !loadReducedFx();
+          saveReducedFx(next);
+          fxButton.setText(next ? 'ЭФФЕКТЫ: МИН' : 'ЭФФЕКТЫ: ПОЛН');
+        },
+        {
+          fillColor: COLOR_BUTTON_SECONDARY,
+          edgeColor: COLOR_BUTTON_SECONDARY_EDGE,
+          textColor: COLOR_TEXT,
+        },
+      );
+      fxButton.setText(loadReducedFx() ? 'ЭФФЕКТЫ: МИН' : 'ЭФФЕКТЫ: ПОЛН');
+
       new Button(this, DESIGN_WIDTH / 2, 1500, '🐞 DEBUG', () => this.scene.start('DebugHub'), {
         width: 400,
         height: 100,
