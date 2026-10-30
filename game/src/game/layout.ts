@@ -7,8 +7,8 @@
  *
  * Раскладка (DESIGN-neon-alchemy §3 — шкала Энергии НАД полем):
  *   0..280   HUD (score/best, stars+multiplier)
- *   290..390   Energy (3 слота стихий) + пипсы переполнения сверху
- *   430..1390  Поле 8×8 (клетка 120px, поле 960px, левый отступ 60px)
+ *   266..366   Energy (3 слота стихий) + пипсы переполнения сверху (244)
+ *   400..1360  Поле 8×8 (клетка 120px, поле 960px, левый отступ 60px; панель 376..1384)
  *   1400..1580 Бонусные слоты руки (3 × ~180px, золотая рамка)
  *   1600..1900 Обычные слоты руки (3 × ~300px)
  */
@@ -32,8 +32,8 @@ export const CELL_RADIUS = 16;
 /** Левый отступ поля. */
 export const BOARD_X = 60;
 
-/** Верхний отступ поля (под шкалой Энергии, DESIGN §3). */
-export const BOARD_TOP = 430;
+/** Верхний отступ поля: панель (PAD=24) занимает 376..1384, зазор до бонусного ряда 16px. */
+export const BOARD_TOP = 400;
 
 /** Размер поля в px (8 × 120). */
 export const BOARD_PIXEL_SIZE = BOARD_SIZE * CELL_SIZE;
@@ -124,7 +124,7 @@ export const HUD_MULTIPLIER_Y = 200;
 
 /** Позиция кнопки «назад в меню» (левый верх, в ряд со шкалой Энергии). */
 export const BACK_BUTTON_X = 80;
-export const BACK_BUTTON_Y = 340;
+export const BACK_BUTTON_Y = 316;
 
 // ─── Energy (шкала 3 слотов стихий, НАД полем — DESIGN §3) ───────────────────
 
@@ -134,11 +134,11 @@ export const ENERGY_SLOT_SIZE = 100;
 /** Зазор между слотами Энергии. */
 export const ENERGY_GAP = 24;
 
-/** Центр ряда Энергии по Y (над полем, между HUD и полем). */
-export const ENERGY_Y = 340;
+/** Центр ряда Энергии по Y (над полем, между HUD и полем; ряд 266..366). */
+export const ENERGY_Y = 316;
 
-/** Y пипсов переполнения над слотами («+1/+2» — DESIGN §11). */
-export const ENERGY_OVERFLOW_Y = 268;
+/** Y пипсов переполнения над слотами («+1/+2» — DESIGN §11), множитель HUD выше (200). */
+export const ENERGY_OVERFLOW_Y = 244;
 
 /** Ширина ряда из N слотов с зазорами. */
 export function energyRowWidth(count: number): number {
@@ -154,6 +154,6 @@ export function energySlotX(i: number, total: number): number {
 
 // ─── Fury ────────────────────────────────────────────────────────────────────
 
-/** Позиция индикатора Fury (чип на нижней кромке поля). */
+/** Позиция индикатора Fury (чип на нижней кромке поля, клетки до 1360). */
 export const FURY_X = DESIGN_WIDTH / 2;
-export const FURY_Y = 1310;
+export const FURY_Y = 1280;
