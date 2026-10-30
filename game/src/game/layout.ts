@@ -154,6 +154,6 @@ export function energySlotX(i: number, total: number): number {
 
 // ─── Fury ────────────────────────────────────────────────────────────────────
 
-/** Позиция индикатора Fury (чип на нижней кромке поля, клетки до 1360). */
-export const FURY_X = DESIGN_WIDTH / 2;
-export const FURY_Y = 1280;
+/** Позиция индикатора Fury: справа от шкалы Энергии, поле не перекрывает (DES-9 переделает визуал). */
+export const FURY_X = 880;
+export const FURY_Y = 316;
