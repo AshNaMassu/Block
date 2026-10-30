@@ -22,6 +22,7 @@ import { getShapeCells } from '../../core/shapes';
 import { specialShape } from '../../core/specials';
 import { mergeSpecialPieces, type MergeResult } from '../../core/hand';
 import { ELEMENT_COLORS } from '../../config/elements';
+import { Sfx } from '../../platform/sound';
 import { BOARD_BOTTOM, BOARD_TOP, BOARD_X, CELL_SIZE, HAND_PIECE_CELL } from '../layout';
 import type { BoardView, DragGhostInfo } from '../objects/BoardView';
 import type { HandView } from '../objects/HandView';
@@ -306,6 +307,7 @@ export class DragController {
       onComplete: () => g.destroy(),
     });
     if (scene.registry.get('reducedFx') !== true) scene.cameras.main.shake(140, 0.004);
+    Sfx.invalid();
   }
 
   // ─── Мердж в руке (гибрид B) ────────────────────────────────────────────

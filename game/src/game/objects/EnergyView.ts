@@ -30,7 +30,8 @@ import {
   ENERGY_SLOT_SIZE,
   ENERGY_Y,
   energySlotX,
-} from '../layout';import { TEX_CELL_SIZE, TEX_FX_BOLT, cellTextureKey } from '../textures';
+} from '../layout';
+import { TEX_CELL_SIZE, TEX_FX_BOLT, cellTextureKey } from '../textures';
 import { ensureBoltTexture } from '../fx/EnergyBoltFx';
 
 export class EnergyView extends Phaser.GameObjects.Container {

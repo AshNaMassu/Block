@@ -70,6 +70,7 @@ import {
   updateMetaAfterGame,
   type PlayerMeta,
 } from '../../platform/storage';
+import { Sfx } from '../../platform/sound';
 import { LineClearFx } from '../fx/LineClearFx';
 import { CleansingFx } from '../fx/CleansingFx';
 import { DetonationFx } from '../fx/DetonationFx';
@@ -248,6 +249,7 @@ export class GameScene extends Phaser.Scene {
   private afterMerge(result: MergeResult): void {
     this.refreshHand();
     if (!result.ok || !result.piece) return;
+    Sfx.merge();
     const label =
       result.piece.kind === 'special' ? this.specialLabel(result.piece.special!) : '🌈 Радужная';
     this.toasts.showAll([
@@ -263,6 +265,10 @@ export class GameScene extends Phaser.Scene {
   /** После успешного хода: анимации → перерисов → тосты → game over. */
   private afterMove(result: PlacementResult, piece: Piece): void {
     // Рука и счёт уже изменились в engine — обновляем сразу.
+    Sfx.place();
+    if (result.clearedLines.length > 0) Sfx.lineClear(result.clearedLines.length);
+    if (result.combo) Sfx.combo(result.combo.lines);
+    if (result.furyStarted) Sfx.fury();
     this.refreshHand();
     this.refreshHud();
     this.debugPanel?.showResult(result);
@@ -589,6 +595,7 @@ export class GameScene extends Phaser.Scene {
         if (cleansing) {
           // Пипсы «+N» и множитель → церемония (DES-8): вспышка, схлопывание
           // слотов, «ОЧИЩЕНИЕ», звезда в счётчик, радуга в бонусные слоты.
+          Sfx.cleansing();
           this.energyView.showOverflow(cleansing.overflow, cleansing.furyMult);
           this.cleansingFx.play(
             cleansing.element,
@@ -658,6 +665,7 @@ export class GameScene extends Phaser.Scene {
   private showGameOver(): void {
     this.furyTimer.remove();
     this.drag.cancel();
+    Sfx.gameover();
 
     const state = this.engine.state;
     this.meta = updateMetaAfterGame(state.score, state.stars, this.meta);
