@@ -77,6 +77,7 @@ export class GameEngine {
       fury: null,
       rngState: seed,
       tutorialCompleted: !tutorial,
+      runStats: { lines: 0, elemental: 0, cleansings: 0, maxCombo: 0, specialsUsed: 0 },
     };
   }
 
@@ -298,6 +299,14 @@ export class GameEngine {
 
     // Шаг 10. Очистка снимка
     applyClear(this.state.grid, scan.cellsToClear);
+
+    // Шаг 10.5. Статистика забега (DES-13)
+    const st = this.state.runStats;
+    st.lines += scan.lines.length;
+    st.elemental += elementalLines;
+    st.cleansings += cleansing ? 1 : 0;
+    if (combo) st.maxCombo = Math.max(st.maxCombo, combo.lines);
+    if (isSpecial) st.specialsUsed += 1;
 
     // Шаг 11. Refill обычных
     const refilled = this.refillNormal();

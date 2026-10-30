@@ -520,7 +520,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     const counts = new Map<SpecialType, number>();
-    for (const p of specials) counts.set(p.special as SpecialType, (counts.get(p.special as SpecialType) ?? 0) + 1);
+    for (const p of specials)
+      counts.set(p.special as SpecialType, (counts.get(p.special as SpecialType) ?? 0) + 1);
     for (const n of counts.values()) {
       if (n >= 2) {
         this.showHintOnce(
@@ -714,6 +715,38 @@ export class GameScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
 
+    // Статистика забега (DES-13).
+    const st = state.runStats;
+    panel.add(
+      this.add
+        .text(
+          0,
+          55,
+          `Линии: ${st.lines} (стихийных ${st.elemental}) · Очищения: ${st.cleansings}
+` + `Комбо: ×${st.maxCombo} · Детонаторы: ${st.specialsUsed}`,
+          {
+            fontFamily: FONT_FAMILY,
+            fontSize: '30px',
+            color: this.hex(COLOR_TEXT),
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5),
+    );
+
+    // Один совет на основе забега (DES-13).
+    panel.add(
+      this.add
+        .text(0, 130, `💡 ${this.runAdvice(state)}`, {
+          fontFamily: FONT_FAMILY,
+          fontSize: '28px',
+          color: this.hex(COLOR_TEXT_DIM),
+          align: 'center',
+          wordWrap: { width: 780 },
+        })
+        .setOrigin(0.5),
+    );
+
     // Кнопки.
     new Button(this, DESIGN_WIDTH / 2 - 220, DESIGN_HEIGHT / 2 + 180, 'ЗАНОВО', () => {
       overlay.destroy();
@@ -723,7 +756,7 @@ export class GameScene extends Phaser.Scene {
     new Button(
       this,
       DESIGN_WIDTH / 2 + 220,
-      DESIGN_HEIGHT / 2 + 180,
+      DESIGN_HEIGHT / 2 + 245,
       'МЕНЮ',
       () => {
         overlay.destroy();
@@ -749,6 +782,16 @@ export class GameScene extends Phaser.Scene {
     );
 
     void overlay;
+  }
+
+  /** Один совет по итогам забега (DES-13): подсказываем то, что не использовано. */
+  private runAdvice(state: GameState): string {
+    const st = state.runStats;
+    if (st.cleansings === 0) return 'Соберите 3 ⚡ — Очищение даёт награды и запускает Fury';
+    if (st.specialsUsed === 0) return 'Детонаторы активируются при постановке — используйте их';
+    if (st.maxCombo < 2) return 'Замкните 2+ стихийные линии за один ход — это КОМБО';
+    if (st.maxCombo < 4) return 'Комбо из 3–4 линий даёт Прилив и Вихрь';
+    return 'Держите пару спецфигур: тап → тап — фигура уровнем выше';
   }
 
   private hex(color: number): string {

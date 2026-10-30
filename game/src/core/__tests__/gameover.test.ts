@@ -17,6 +17,7 @@ function makeState(hand: (Piece | null)[], grid = createGrid()): GameState {
     fury: null,
     rngState: 1,
     tutorialCompleted: true,
+    runStats: { lines: 0, elemental: 0, cleansings: 0, maxCombo: 0, specialsUsed: 0 },
   };
 }
 

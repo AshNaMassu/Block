@@ -208,6 +208,20 @@ export interface PlacementResult {
   gameOver: boolean;
 }
 
+/** Статистика забега (DES-13, для Game Over). */
+export interface RunStats {
+  /** Закрыто линий всего. */
+  lines: number;
+  /** Из них стихийных. */
+  elemental: number;
+  /** Очищений. */
+  cleansings: number;
+  /** Лучшее комбо (макс. линий за ход). */
+  maxCombo: number;
+  /** Использовано детонаторов. */
+  specialsUsed: number;
+}
+
 /** Полное игровое состояние (сериализуется в сейв). */
 export interface GameState {
   grid: Grid;
@@ -219,4 +233,5 @@ export interface GameState {
   fury: FuryState | null;
   rngState: RngState;
   tutorialCompleted: boolean;
+  runStats: RunStats;
 }

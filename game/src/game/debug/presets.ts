@@ -31,6 +31,7 @@ function reset(engine: GameEngine): GameState {
   engine.state.hand = engine.state.hand.map(() => null);
   engine.state.score = 0;
   engine.state.stars = 0;
+  engine.state.runStats = { lines: 0, elemental: 0, cleansings: 0, maxCombo: 0, specialsUsed: 0 };
   return engine.state;
 }
 

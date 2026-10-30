@@ -91,6 +91,8 @@ export function loadGame(): GameState | null {
     const parsed = JSON.parse(raw) as GameState;
     // Минимальная sanity-проверка; полная валидация — в T-051.
     if (!parsed || !Array.isArray(parsed.grid) || !Array.isArray(parsed.hand)) return null;
+    // Сейвы до DES-13 без статистики забега — досыпаем нули.
+    parsed.runStats ??= { lines: 0, elemental: 0, cleansings: 0, maxCombo: 0, specialsUsed: 0 };
     return parsed;
   } catch {
     return null;
